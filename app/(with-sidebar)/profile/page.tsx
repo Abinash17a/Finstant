@@ -1,276 +1,229 @@
 "use client"
 
-import { useState } from "react"
-import { Camera, Mail, Phone, MapPin, Briefcase, DollarSign, Calendar, Edit2, Save, X } from "lucide-react"
+import { useEffect, useState } from "react"
+
+interface UserProfile {
+  first_name?: string
+  last_name?: string
+  email?: string
+  avatar_url?: string
+  position?: string
+  base_salary?: string
+  monthly_budget?: string
+  address?: string
+  zip_code?: string
+  country?: string
+  date_joined?: string
+  department?: string
+  phone?: string
+}
 
 export default function ProfilePage() {
-  const [isEditing, setIsEditing] = useState(false)
-  const [profile, setProfile] = useState({
-    name: "Alex Johnson",
-    role: "Senior Financial Analyst",
-    email: "alex.johnson@example.com",
-    phone: "+1 (555) 123-4567",
-    address: "123 Finance Street, New York, NY 10001",
-    dateJoined: "January 15, 2022",
-    salary: "85,000",
-    monthlyBudget: "4,200",
-    about:
-      "Experienced financial analyst with a passion for budget optimization and expense tracking. I help companies and individuals make smarter financial decisions through data-driven insights.",
-    skills: ["Financial Planning", "Budget Analysis", "Expense Tracking", "Investment Strategy", "Risk Assessment"],
-  })
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const handleChange = (field: string, value: string) => {
-    setProfile((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        const res = await fetch("/api/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setProfile(data)
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProfile()
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-t-blue-500 border-gray-200 rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your profile...</p>
+        </div>
+      </div>
+    )
   }
 
-  const handleSave = () => {
-    console.log("Saving profile:", profile)
-    setIsEditing(false)
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center p-6 bg-white rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-red-500">Profile Not Found</h2>
+          <p className="mt-2 text-gray-600">Unable to load your profile information.</p>
+          <button
+            onClick={() => (window.location.href = "/login")}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+          >
+            Return to Login
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-emerald-100 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto">
-        {/* Profile Header Card */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
-          <div className="bg-gradient-to-r from-teal-500 to-emerald-600 h-32 relative">
-            {isEditing && (
-              <button
-                className="absolute top-4 right-4 bg-white text-teal-600 p-2 rounded-full shadow-md hover:bg-teal-50"
-                onClick={() => setIsEditing(false)}
-              >
-                <X size={18} />
-              </button>
-            )}
-          </div>
-
-          <div className="px-6 pb-6 relative">
-            <div className="flex flex-col md:flex-row items-center md:items-end -mt-16 md:-mt-12 mb-4 md:mb-6 relative">
-              <div className="relative mb-4 md:mb-0">
-                <div className="w-32 h-32 rounded-full border-4 border-white bg-teal-100 flex items-center justify-center overflow-hidden shadow-lg">
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div className="md:flex">
+            {/* Left Section - Avatar and Name */}
+            <div className="md:w-1/3 bg-gradient-to-br from-blue-500 to-purple-600 text-white p-8">
+              <div className="flex flex-col items-center text-center">
+                <div className="relative">
                   <img
-                    src="/placeholder.svg?height=128&width=128"
-                    alt={profile.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const img = e.currentTarget as HTMLImageElement
-                      img.style.display = "none"
-                      const sibling = img.nextElementSibling as HTMLElement | null
-                      if (sibling) sibling.style.display = "flex"
-                    }}
+                    src={profile.avatar_url || "/placeholder.svg?height=200&width=200"}
+                    alt="Profile Avatar"
+                    className="w-40 h-40 rounded-full object-cover border-4 border-white shadow-lg"
                   />
-                  <div className="hidden text-3xl font-bold text-teal-600">
-                    {profile.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
+                  <button className="absolute bottom-0 right-0 bg-white text-blue-500 rounded-full p-2 shadow-md hover:bg-gray-100">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <h1 className="mt-6 text-3xl font-bold">
+                  {profile.first_name} {profile.last_name}
+                </h1>
+                <p className="mt-2 text-blue-100">{profile.position || "No position specified"}</p>
+                <div className="mt-6 flex items-center justify-center">
+                  <div className="px-3 py-1 bg-blue-700 bg-opacity-30 rounded-full text-sm">
+                    Member since {profile.date_joined ? new Date(profile.date_joined).toLocaleDateString() : "N/A"}
                   </div>
                 </div>
-                {isEditing && (
-                  <button className="absolute bottom-0 right-0 bg-teal-600 text-white p-2 rounded-full shadow-md hover:bg-teal-700">
-                    <Camera size={16} />
+                <div className="mt-8 w-full">
+                  <button className="w-full bg-white text-blue-600 px-4 py-3 rounded-lg font-medium hover:bg-blue-50 transition-colors">
+                    Edit Profile
                   </button>
-                )}
+                </div>
               </div>
-
-              <div className="md:ml-6 text-center md:text-left">
-                <h2 className="text-2xl font-bold text-gray-800">{profile.name}</h2>
-                <p className="text-teal-600 font-medium">{profile.role}</p>
-                <p className="text-gray-500 text-sm mt-1 flex items-center justify-center md:justify-start">
-                  <Calendar size={14} className="mr-1" />
-                  Member since {profile.dateJoined}
-                </p>
-              </div>
-
-              {!isEditing && (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="md:ml-auto mt-4 md:mt-0 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center"
-                >
-                  <Edit2 size={16} className="mr-2" />
-                  Edit Profile
-                </button>
-              )}
-
-              {isEditing && (
-                <button
-                  onClick={handleSave}
-                  className="md:ml-auto mt-4 md:mt-0 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center"
-                >
-                  <Save size={16} className="mr-2" />
-                  Save Changes
-                </button>
-              )}
             </div>
-          </div>
-        </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left Column - Contact Info */}
-          <div className="md:col-span-1">
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Contact Information</h3>
+            {/* Middle Section - Basic Details */}
+            <div className="md:w-1/3 p-8 border-r border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-800 mb-6">Personal Information</h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Email Address</label>
-                  {!isEditing ? (
-                    <div className="flex items-center">
-                      <Mail size={16} className="text-teal-600 mr-2" />
-                      <span>{profile.email}</span>
-                    </div>
-                  ) : (
-                    <input
-                      type="email"
-                      value={profile.email}
-                      onChange={(e) => handleChange("email", e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                    />
-                  )}
+                  <p className="text-sm text-gray-500">Email Address</p>
+                  <p className="font-medium text-gray-800">{profile.email || "Not provided"}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Phone Number</label>
-                  {!isEditing ? (
-                    <div className="flex items-center">
-                      <Phone size={16} className="text-teal-600 mr-2" />
-                      <span>{profile.phone}</span>
-                    </div>
-                  ) : (
-                    <input
-                      type="tel"
-                      value={profile.phone}
-                      onChange={(e) => handleChange("phone", e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                    />
-                  )}
+                  <p className="text-sm text-gray-500">Phone Number</p>
+                  <p className="font-medium text-gray-800">{profile.phone || "Not provided"}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Address</label>
-                  {!isEditing ? (
-                    <div className="flex items-start">
-                      <MapPin size={16} className="text-teal-600 mr-2 mt-1" />
-                      <span>{profile.address}</span>
-                    </div>
-                  ) : (
-                    <textarea
-                      value={profile.address}
-                      onChange={(e) => handleChange("address", e.target.value)}
-                      rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                    />
-                  )}
+                  <p className="text-sm text-gray-500">Department</p>
+                  <p className="font-medium text-gray-800">{profile.department || "Not assigned"}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Job Title</label>
-                  {!isEditing ? (
-                    <div className="flex items-center">
-                      <Briefcase size={16} className="text-teal-600 mr-2" />
-                      <span>{profile.role}</span>
-                    </div>
-                  ) : (
-                    <input
-                      type="text"
-                      value={profile.role}
-                      onChange={(e) => handleChange("role", e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Financial Info & About */}
-          <div className="md:col-span-2 space-y-6">
-            {/* Financial Information */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Financial Information</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Annual Salary</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <DollarSign size={16} className="text-teal-600" />
-                    </div>
-                    {!isEditing ? (
-                      <div className="bg-gray-50 px-3 py-2 pl-10 rounded-md border border-gray-200">
-                        ${profile.salary}
-                      </div>
-                    ) : (
-                      <input
-                        type="text"
-                        value={profile.salary}
-                        onChange={(e) => handleChange("salary", e.target.value)}
-                        className="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      />
-                    )}
-                  </div>
+                  <p className="text-sm text-gray-500">Country</p>
+                  <p className="font-medium text-gray-800">{profile.country || "Not provided"}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Monthly Budget</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <DollarSign size={16} className="text-teal-600" />
-                    </div>
-                    {!isEditing ? (
-                      <div className="bg-gray-50 px-3 py-2 pl-10 rounded-md border border-gray-200">
-                        ${profile.monthlyBudget}
-                      </div>
-                    ) : (
-                      <input
-                        type="text"
-                        value={profile.monthlyBudget}
-                        onChange={(e) => handleChange("monthlyBudget", e.target.value)}
-                        className="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      />
-                    )}
-                  </div>
+                  <p className="text-sm text-gray-500">Address</p>
+                  <p className="font-medium text-gray-800">{profile.address || "Not provided"}</p>
                 </div>
-              </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-gray-500">Budget Utilization</span>
-                  <span className="text-sm font-medium text-teal-600">65%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div className="bg-teal-600 h-2.5 rounded-full" style={{ width: "65%" }}></div>
+                <div>
+                  <p className="text-sm text-gray-500">Zip Code</p>
+                  <p className="font-medium text-gray-800">{profile.zip_code || "Not provided"}</p>
                 </div>
               </div>
             </div>
 
-            {/* About Section */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">About Me</h3>
+            {/* Right Section - Financial Details */}
+            <div className="md:w-1/3 p-8 bg-gray-50">
+              <h2 className="text-xl font-semibold text-gray-800 mb-6">Financial Information</h2>
 
-              {!isEditing ? (
-                <p className="text-gray-700">{profile.about}</p>
-              ) : (
-                <textarea
-                  value={profile.about}
-                  onChange={(e) => handleChange("about", e.target.value)}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                />
-              )}
+              <div className="space-y-6">
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <p className="text-sm text-gray-500">Base Salary</p>
+                  <p className="text-2xl font-bold text-gray-800">₹{profile.base_salary || "0"}</p>
+                </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <h4 className="font-medium text-gray-700 mb-2">Skills</h4>
-                <div className="flex flex-wrap gap-2">
-                  {profile.skills.map((skill, index) => (
-                    <span key={index} className="px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-sm">
-                      {skill}
-                    </span>
-                  ))}
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                  <p className="text-sm text-gray-500">Monthly Budget</p>
+                  <p className="text-2xl font-bold text-gray-800">₹{profile.monthly_budget || "0"}</p>
+                </div>
+
+                <div className="mt-8">
+                  <h3 className="text-lg font-medium text-gray-700 mb-4">Quick Actions</h3>
+                  <div className="space-y-3">
+                    <button className="w-full bg-gray-200 px-4 py-3 rounded-lg text-gray-700 font-medium hover:bg-gray-300 transition-colors flex items-center justify-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 mr-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        />
+                      </svg>
+                      Request Budget Increase
+                    </button>
+
+                    <button
+                      className="w-full bg-red-500 px-4 py-3 rounded-lg text-white font-medium hover:bg-red-600 transition-colors flex items-center justify-center"
+                      onClick={() => {
+                        localStorage.removeItem("token")
+                        window.location.href = "/login"
+                      }}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 mr-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                        />
+                      </svg>
+                      Logout
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

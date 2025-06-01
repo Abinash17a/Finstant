@@ -1,18 +1,6 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
 import jwt from 'jsonwebtoken'
-import { NextRequest } from "next/server"
-
-
 
 const SECRET = process.env.JWT_SECRET || 'your-secret-key'
-
-
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
-
 
 export function getUserFromToken(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
@@ -26,3 +14,10 @@ export function getUserFromToken(req: NextRequest) {
     return null
   }
 }
+
+
+
+Now you can use this in any API route to fetch user data:
+
+const userId = getUserFromToken(req)
+const user = await prisma.user.findUnique({ where: { id: userId } })
