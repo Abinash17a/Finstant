@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     select: {
       first_name: true,
       last_name: true,
+      phone_number: true,
       email: true,
       avatar_url: true,
       base_salary: true,
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
       address: true,
       zip_code: true,
       country: true,
-      date_joined: true,
+      created_at: true,
     },
   })
 

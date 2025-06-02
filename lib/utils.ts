@@ -14,6 +14,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 
+
 export function getUserFromToken(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   if (!authHeader) return null
@@ -23,6 +24,25 @@ export function getUserFromToken(req: NextRequest) {
     const payload = jwt.verify(token, SECRET) as { userId: string }
     return payload.userId
   } catch (err) {
+    return null
+  }
+}
+
+export function getUserFromauthToken(token: string) {
+  console.log("Im here")
+  console.log("token", token)
+  // const authHeader = req.headers.get('authorization')
+  if (!token) return null
+
+  // const token = authHeader.split(' ')[1]
+  console.log("Im here")
+  try {
+    console.log(token, "token in getUserFromauthToken", SECRET)
+    const payload = jwt.verify(token, SECRET) as { userId: string }
+    console.log("payload-------------",payload)
+    return payload.userId
+  } catch (err) {
+    console.log("error occured in getUserFromauthToken", err)
     return null
   }
 }

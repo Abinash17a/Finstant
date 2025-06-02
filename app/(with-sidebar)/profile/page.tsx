@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Camera, Edit3, Mail, Phone, MapPin, Building2, CreditCard, Calendar, User, Settings } from "lucide-react"
+import { getUserFromauthToken } from "@/lib/utils"
 
 interface UserProfile {
   first_name?: string
@@ -13,14 +15,31 @@ interface UserProfile {
   address?: string
   zip_code?: string
   country?: string
-  date_joined?: string
+  created_at?: string
   department?: string
-  phone?: string
+  phone_number?: string
 }
 
+interface EditedProfile {
+  first_name?: string
+  last_name?: string
+  avatar_url?: string
+  position?: string
+  base_salary?: string
+  monthly_budget?: string
+  address?: string
+  zip_code?: string
+  country?: string
+  department?: string
+  phone_number?: string
+}
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("overview")
+  const [editing, setEditing] = useState(false)
+  const [editedProfile, setEditedProfile] = useState<EditedProfile | null>(null)
+
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -45,12 +64,43 @@ export default function ProfilePage() {
     fetchProfile()
   }, [])
 
+    const handleUserDataUpdate= async()=>{
+      console.log("Edited profile---------------data-----",editedProfile)
+      const token = await localStorage.getItem("token")
+       if (!token) {
+        throw new Error("No auth token found")
+      }
+      const id = await getUserFromauthToken(token)
+      console.log(id, "id of user to be updated")
+      const response = await fetch(`/api/users/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+         'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(editedProfile),
+    })
+
+    if (!response.ok) {
+
+      throw new Error('Failed to update user')
+    }
+    console.log('User data updated successfully')
+    setEditing(false);
+
+    return response.json()
+  }
+
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-t-blue-500 border-gray-200 rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your profile...</p>
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-indigo-200 rounded-full animate-spin"></div>
+            <div className="absolute top-0 left-0 w-20 h-20 border-4 border-t-indigo-600 border-r-indigo-600 rounded-full animate-spin"></div>
+          </div>
+          <p className="mt-6 text-slate-600 font-medium">Loading your profile...</p>
         </div>
       </div>
     )
@@ -58,177 +108,290 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center p-6 bg-white rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold text-red-500">Profile Not Found</h2>
-          <p className="mt-2 text-gray-600">Unable to load your profile information.</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center p-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Profile Not Found</h2>
+          <p className="text-slate-600 mb-6">Unable to load your profile information.</p>
           <button
-            onClick={() => (window.location.href = "/login")}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+            onClick={() => (window.location.href = "/landing")}
+            className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
           >
-            Return to Login
+            Re Login
           </button>
         </div>
       </div>
     )
   }
 
+  const tabs = [
+    { id: "overview", label: "Overview", icon: User },
+    { id: "financial", label: "Financial", icon: CreditCard }
+  ]
+
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className="md:flex">
-            {/* Left Section - Avatar and Name */}
-            <div className="md:w-1/3 bg-gradient-to-br from-blue-500 to-purple-600 text-white p-8">
-              <div className="flex flex-col items-center text-center">
-                <div className="relative">
-                  <img
-                    src={profile.avatar_url || "/placeholder.svg?height=200&width=200"}
-                    alt="Profile Avatar"
-                    className="w-40 h-40 rounded-full object-cover border-4 border-white shadow-lg"
-                  />
-                  <button className="absolute bottom-0 right-0 bg-white text-blue-500 rounded-full p-2 shadow-md hover:bg-gray-100">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                <h1 className="mt-6 text-3xl font-bold">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-md border-b border-white/20 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-1 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <h1 className="text-xl font-bold text-slate-800">Profile Dashboard</h1>
+            <button className="p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
+              <Settings className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Profile Header Card */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 overflow-hidden mb-8">
+          <div className="relative h-32 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
+            <div className="absolute top-4 right-4">
+              <button className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors">
+                <Edit3 className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          </div>
+          <div className="relative px-8 pb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end -mt-16 mb-6">
+              <div className="relative">
+                <img
+                  src={profile.avatar_url || "/placeholder.svg?height=120&width=120"}
+                  alt="Profile Avatar"
+                  className="w-32 h-32 rounded-2xl object-cover border-4 border-white shadow-lg"
+                />
+                <button className="absolute -bottom-2 -right-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl p-2.5 shadow-lg transition-colors">
+                  <Camera className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="mt-4 sm:mt-0 sm:ml-6 flex-1">
+                <h2 className="text-3xl font-bold text-white">
                   {profile.first_name} {profile.last_name}
-                </h1>
-                <p className="mt-2 text-blue-100">{profile.position || "No position specified"}</p>
-                <div className="mt-6 flex items-center justify-center">
-                  <div className="px-3 py-1 bg-blue-700 bg-opacity-30 rounded-full text-sm">
-                    Member since {profile.date_joined ? new Date(profile.date_joined).toLocaleDateString() : "N/A"}
-                  </div>
+                </h2>
+                <p className="text-lg text-indigo-600 font-medium mt-1">{profile.position}</p>
+                <div className="flex items-center mt-3 text-sm text-slate-600">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Member since {profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long'
+                  }) : "N/A"}
                 </div>
-                <div className="mt-8 w-full">
-                  <button className="w-full bg-white text-blue-600 px-4 py-3 rounded-lg font-medium hover:bg-blue-50 transition-colors">
+              </div>
+              <div className="mt-4 sm:mt-0">
+                {!editing ?
+                  (<button onClick={() => setEditing(true)} className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl">
                     Edit Profile
+                  </button>)
+                  :
+                  (<div className="flex space-x-4">
+                    <button onClick={() => handleUserDataUpdate()} className="px-6 py-3 bg-green-900 hover:bg-green-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl">
+                    Save
                   </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Middle Section - Basic Details */}
-            <div className="md:w-1/3 p-8 border-r border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-800 mb-6">Personal Information</h2>
-
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500">Email Address</p>
-                  <p className="font-medium text-gray-800">{profile.email || "Not provided"}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500">Phone Number</p>
-                  <p className="font-medium text-gray-800">{profile.phone || "Not provided"}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500">Department</p>
-                  <p className="font-medium text-gray-800">{profile.department || "Not assigned"}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500">Country</p>
-                  <p className="font-medium text-gray-800">{profile.country || "Not provided"}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500">Address</p>
-                  <p className="font-medium text-gray-800">{profile.address || "Not provided"}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-gray-500">Zip Code</p>
-                  <p className="font-medium text-gray-800">{profile.zip_code || "Not provided"}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Section - Financial Details */}
-            <div className="md:w-1/3 p-8 bg-gray-50">
-              <h2 className="text-xl font-semibold text-gray-800 mb-6">Financial Information</h2>
-
-              <div className="space-y-6">
-                <div className="bg-white p-4 rounded-lg shadow-sm">
-                  <p className="text-sm text-gray-500">Base Salary</p>
-                  <p className="text-2xl font-bold text-gray-800">₹{profile.base_salary || "0"}</p>
-                </div>
-
-                <div className="bg-white p-4 rounded-lg shadow-sm">
-                  <p className="text-sm text-gray-500">Monthly Budget</p>
-                  <p className="text-2xl font-bold text-gray-800">₹{profile.monthly_budget || "0"}</p>
-                </div>
-
-                <div className="mt-8">
-                  <h3 className="text-lg font-medium text-gray-700 mb-4">Quick Actions</h3>
-                  <div className="space-y-3">
-                    <button className="w-full bg-gray-200 px-4 py-3 rounded-lg text-gray-700 font-medium hover:bg-gray-300 transition-colors flex items-center justify-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 mr-2"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                        />
-                      </svg>
-                      Request Budget Increase
-                    </button>
-
-                    <button
-                      className="w-full bg-red-500 px-4 py-3 rounded-lg text-white font-medium hover:bg-red-600 transition-colors flex items-center justify-center"
-                      onClick={() => {
-                        localStorage.removeItem("token")
-                        window.location.href = "/login"
-                      }}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 mr-2"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                        />
-                      </svg>
-                      Logout
-                    </button>
-                  </div>
-                </div>
+                    <button onClick={() => setEditing(false)} className="px-6 py-3 bg-red-900 hover:bg-red-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl">
+                      Cancel Edit
+                    </button></div>
+                  )
+                }
               </div>
             </div>
           </div>
         </div>
+
+        {/* Navigation Tabs */}
+        <div className="flex space-x-1 bg-white/60 backdrop-blur-sm p-1 rounded-2xl mb-8 border border-white/20">
+          {tabs.map((tab) => {
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 flex items-center justify-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${activeTab === tab.id
+                  ? "bg-white text-indigo-600 shadow-md"
+                  : "text-slate-600 hover:text-slate-800 hover:bg-white/50"
+                  }`}
+              >
+                <Icon className="w-4 h-4 mr-2" />
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Content Area */}
+        {activeTab === "overview" && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Personal Information */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
+                <User className="w-5 h-5 mr-2 text-indigo-600" />
+                Personal Information
+              </h3>
+              <div className="space-y-6">
+                <div className="flex items-center p-4 bg-slate-50/50 rounded-xl">
+                  <Mail className="w-5 h-5 text-indigo-600 mr-4" />
+                  <div className="flex-1">
+                    <p className="text-sm text-slate-500">Email Address</p>
+                    <p className="font-medium text-slate-800">{profile.email || "Not provided"}</p>
+                  </div>
+                </div>
+                <div className="flex items-center p-4 bg-slate-50/50 rounded-xl">
+                  <Phone className="w-5 h-5 text-indigo-600 mr-4" />
+                  <div className="flex-1">
+                    <p className="text-sm text-slate-500">Phone Number</p>
+                    {editing ? (
+                      <input
+                        type="text"
+                        name="phone_number"
+                        placeholder="Enter phone number"
+                        value={editedProfile?.phone_number || ""}
+                        onChange={(e) =>
+                          setEditedProfile((prev) => ({
+                            ...prev,
+                            phone_number: e.target.value,
+                          }))
+                        }
+                        className="w-fit px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 shadow-sm"
+                      />
+                    ) : (
+                      <p className="font-medium text-slate-800">
+                        {profile.phone_number || "Not provided"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center p-4 bg-slate-50/50 rounded-xl">
+                  <Building2 className="w-5 h-5 text-indigo-600 mr-4" />
+                  <div className="flex-1">
+                    <p className="text-sm text-slate-500">Department</p>
+                    {editing ? (
+                      <input
+                        type="text"
+                        name="department"
+                        placeholder="Enter department"
+                        value={editedProfile?.department || ""}
+                        onChange={(e) =>
+                          setEditedProfile((prev) => ({
+                            ...prev,
+                            department: e.target.value,
+                          }))
+                        }
+                        className="w-fit px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 shadow-sm"
+                      />
+                    ) : (
+                      <p className="font-medium text-slate-800">{profile.department || "Not assigned"}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Location Information */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
+                <MapPin className="w-5 h-5 mr-2 text-indigo-600" />
+                Location Details
+              </h3>
+              <div className="space-y-6">
+                {/* Country */}
+                <div className="p-4 bg-slate-50/50 rounded-xl">
+                  <p className="text-sm text-slate-500 mb-1">Country</p>
+                  {editing ? (
+                    <input
+                      type="text"
+                      name="country"
+                      placeholder="Enter country"
+                      value={editedProfile?.country || ""}
+                      onChange={(e) =>
+                        setEditedProfile((prev) => ({
+                          ...prev,
+                          country: e.target.value,
+                        }))
+                      }
+                      className="w-fit px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 shadow-sm"
+                    />
+                  ) : (
+                    <p className="font-medium text-slate-800">{profile.country || "Not provided"}</p>
+                  )}
+                </div>
+
+                {/* Address */}
+                <div className="p-4 bg-slate-50/50 rounded-xl">
+                  <p className="text-sm text-slate-500 mb-1">Address</p>
+                  {editing ? (
+                    <input
+                      type="text"
+                      name="address"
+                      placeholder="Enter address"
+                      value={editedProfile?.address || ""}
+                      onChange={(e) =>
+                        setEditedProfile((prev) => ({
+                          ...prev,
+                          address: e.target.value,
+                        }))
+                      }
+                      className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 shadow-sm"
+                    />
+                  ) : (
+                    <p className="font-medium text-slate-800">{profile.address || "Not provided"}</p>
+                  )}
+                </div>
+
+                {/* Zip Code */}
+                <div className="p-4 bg-slate-50/50 rounded-xl">
+                  <p className="text-sm text-slate-500 mb-1">Zip Code</p>
+                  {editing ? (
+                    <input
+                      type="text"
+                      name="zip_code"
+                      placeholder="Enter zip code"
+                      value={editedProfile?.zip_code || ""}
+                      onChange={(e) =>
+                        setEditedProfile((prev) => ({
+                          ...prev,
+                          zip_code: e.target.value,
+                        }))
+                      }
+                      className="w-32 px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 shadow-sm"
+                    />
+                  ) : (
+                    <p className="font-medium text-slate-800">{profile.zip_code || "Not provided"}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {/* {activeTab === "financial" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg p-8 text-white">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Base Salary</h3>
+                <div className="p-3 bg-white/20 rounded-xl">
+                  <CreditCard className="w-6 h-6" />
+                </div>
+              </div>
+              <p className="text-4xl font-bold mb-2">₹{profile.base_salary || "0"}</p>
+              <p className="text-green-100">Annual compensation</p>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg p-8 text-white">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">Monthly Budget</h3>
+                <div className="p-3 bg-white/20 rounded-xl">
+                  <CreditCard className="w-6 h-6" />
+                </div>
+              </div>
+              <p className="text-4xl font-bold mb-2">₹{profile.monthly_budget || "0"}</p>
+              <p className="text-blue-100">Available monthly</p>
+            </div>
+          </div>
+        )} */}
+
       </div>
     </div>
   )
