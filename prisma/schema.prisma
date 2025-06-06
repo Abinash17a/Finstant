@@ -41,15 +41,12 @@ model transactions {
   description    String?
   date           DateTime? @default(now()) @db.Timestamp(6)
   payment_method String
-  Location       String?
+  location       String?
   tags           String?
   sub_category   String
-  users          user      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user")
-}
+  user           user      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user")
 
-enum TransactionType {
-  INCOME
-  EXPENSE
+  @@map("transactions")
 }
 
 enum TransactionCategory {
@@ -61,4 +58,9 @@ enum TransactionCategory {
   HEALTHCARE
   SALARY
   OTHER
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
 }
