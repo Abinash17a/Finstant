@@ -57,3 +57,10 @@ export const getUserFromauthToken = async (token: string) => {
   }
 }
 
+export function formatWord(input:any) {
+  return input
+    ?.toLowerCase()
+    .split('_')
+    .map((word: any) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}

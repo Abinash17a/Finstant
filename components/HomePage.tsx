@@ -6,7 +6,7 @@ import SalaryBudgetCharts from "./salary-budget-charts"
 // import { getDashboardData } from "./actions"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/chartscomponent/chatselements'
 import Link from "next/link"
-import { getUserFromauthToken } from "@/lib/utils"
+import { formatWord, getUserFromauthToken } from "@/lib/utils"
 const Button = ({
   children,
   className = "",
@@ -281,7 +281,7 @@ export default function DashboardPage() {
                     <div>
                       <div className="font-medium">{transaction.description}</div>
                       <div className="text-sm text-slate-500">
-                        {transaction.category} • {transaction.date}
+                        {formatWord(transaction.category)} • {transaction.date}
                       </div>
                     </div>
                   </div>

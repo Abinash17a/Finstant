@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Calendar, DollarSign, Tag, MapPin, FileText, Plus, Minus } from 'lucide-react';
-import { getUserFromauthToken } from '@/lib/utils';
+import { formatWord, getUserFromauthToken } from '@/lib/utils';
 
 export default function ExpenseTracker() {
   const [formData, setFormData] = useState({
@@ -387,7 +387,7 @@ const getRecentTransactions = async () => {
                     </div>
                     <p className="text-sm text-gray-600 mb-1">{Transaction.date}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-blue-600">{Transaction.category}</span>
+                      <span className="text-sm font-medium text-blue-600">{formatWord(Transaction.category)}</span>
                       <span className="text-xs text-gray-500">{Transaction.sub_category}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{Transaction.description}</p>
