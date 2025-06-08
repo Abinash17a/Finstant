@@ -1,128 +1,12 @@
+"use client"
 import type React from "react"
-import { Suspense } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { Wallet, TrendingUp, Target, DollarSign, PlusCircle, Calendar } from "lucide-react"
 import SalaryBudgetCharts from "./salary-budget-charts"
 // import { getDashboardData } from "./actions"
-
- async function getDashboardData() {
-  // TODO: Replace with actual Prisma queries
-  // Example Prisma queries you would use:
-
-  // const user = await prisma.user.findUnique({
-  //   where: { id: userId },
-  //   include: {
-  //     transactions: {
-  //       where: {
-  //         createdAt: {
-  //           gte: startOfMonth,
-  //           lte: endOfMonth
-  //         }
-  //       }
-  //     },
-  //     budgets: true,
-  //     goals: true
-  //   }
-  // })
-
-  // Mock data - replace with actual database queries
-  return {
-    monthlySalary: 85000,
-    totalBudget: 70000,
-    totalSpent: 45230,
-    monthlyData: [
-      { month: "Jan", salary: 80000, budget: 65000, spent: 58000 },
-      { month: "Feb", salary: 82000, budget: 67000, spent: 61000 },
-      { month: "Mar", salary: 83000, budget: 68000, spent: 59000 },
-      { month: "Apr", salary: 84000, budget: 69000, spent: 63000 },
-      { month: "May", salary: 85000, budget: 70000, spent: 52000 },
-      { month: "Jun", salary: 85000, budget: 70000, spent: 45230 },
-    ],
-    categorySpending: [
-      { category: "Food & Dining", amount: 12500, color: "#ef4444" },
-      { category: "Transportation", amount: 8200, color: "#f97316" },
-      { category: "Shopping", amount: 6800, color: "#eab308" },
-      { category: "Entertainment", amount: 4200, color: "#22c55e" },
-      { category: "Bills & Utilities", amount: 9500, color: "#3b82f6" },
-      { category: "Healthcare", amount: 4030, color: "#a855f7" },
-    ],
-    budgetCategories: [
-      { name: "Food & Dining", budget: 15000, spent: 12500, color: "bg-red-500" },
-      { name: "Transportation", budget: 10000, spent: 8200, color: "bg-orange-500" },
-      { name: "Shopping", budget: 8000, spent: 6800, color: "bg-yellow-500" },
-      { name: "Entertainment", budget: 5000, spent: 4200, color: "bg-green-500" },
-      { name: "Bills & Utilities", budget: 12000, spent: 9500, color: "bg-blue-500" },
-      { name: "Healthcare", budget: 6000, spent: 4030, color: "bg-purple-500" },
-    ],
-    financialGoals: [
-      { name: "Emergency Fund", target: 500000, current: 285000 },
-      { name: "Vacation Fund", target: 150000, current: 45000 },
-      { name: "Investment Portfolio", target: 1000000, current: 320000 },
-    ],
-    recentTransactions: [
-      {
-        description: "Salary Credit",
-        amount: 85000,
-        category: "Income",
-        date: "Jun 1",
-        type: "income" as const,
-        categoryColor: "bg-emerald-500",
-      },
-      {
-        description: "Grocery Shopping",
-        amount: 3200,
-        category: "Food",
-        date: "Jun 2",
-        type: "expense" as const,
-        categoryColor: "bg-red-500",
-      },
-      {
-        description: "Uber Ride",
-        amount: 450,
-        category: "Transport",
-        date: "Jun 2",
-        type: "expense" as const,
-        categoryColor: "bg-orange-500",
-      },
-      {
-        description: "Netflix Subscription",
-        amount: 799,
-        category: "Entertainment",
-        date: "Jun 3",
-        type: "expense" as const,
-        categoryColor: "bg-green-500",
-      },
-      {
-        description: "Electricity Bill",
-        amount: 2100,
-        category: "Bills",
-        date: "Jun 3",
-        type: "expense" as const,
-        categoryColor: "bg-blue-500",
-      },
-    ],
-  }
-}
-// Custom UI Components
-const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`bg-white rounded-xl shadow-sm border border-slate-200 ${className}`}>{children}</div>
-)
-
-const CardHeader = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`p-6 pb-4 ${className}`}>{children}</div>
-)
-
-const CardTitle = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <h3 className={`font-semibold text-slate-900 ${className}`}>{children}</h3>
-)
-
-const CardDescription = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <p className={`text-sm text-slate-600 mt-1 ${className}`}>{children}</p>
-)
-
-const CardContent = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`p-6 pt-0 ${className}`}>{children}</div>
-)
-
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/chartscomponent/chatselements'
+import Link from "next/link"
+import { getUserFromauthToken } from "@/lib/utils"
 const Button = ({
   children,
   className = "",
@@ -186,8 +70,52 @@ const Progress = ({
   </div>
 )
 
-export default async function DashboardPage() {
-  const data = await getDashboardData()
+export default function DashboardPage() {
+
+  const [data, setData] = useState<any>([{}]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboardData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const user_id = await getUserFromauthToken(token ?? '');
+
+      if (!user_id) {
+        alert('User not authenticated');
+        return;
+      }
+
+      const limit = 5;
+
+      const res = await fetch(`/api/dashboard?userId=${user_id}&limit=${limit}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        console.log('Dashboard data:', result);
+        setData(result);
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  if (loading) return <p>Loading...</p>;
+  if (!data) return <p>No data available</p>;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
@@ -199,10 +127,12 @@ export default async function DashboardPage() {
             <p className="text-slate-600 mt-1">Track your salary, budget, and financial goals</p>
           </div>
           <div className="flex gap-3">
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Add Transaction
-            </Button>
+            <Link href="/expenses">
+              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" href="/expenses">
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Add Transaction
+              </Button>
+            </Link>
             <Button variant="outline">
               <Calendar className="w-4 h-4 mr-2" />
               This Month
@@ -283,7 +213,7 @@ export default async function DashboardPage() {
               <CardDescription>Track spending across different categories</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {data.budgetCategories.map((category, index) => (
+              {data.budgetCategories.map((category: any, index: number) => (
                 <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
@@ -311,7 +241,7 @@ export default async function DashboardPage() {
               <CardDescription>Your savings and investment targets</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {data.financialGoals.map((goal, index) => (
+              {data.financialGoals.map((goal: any, index: number) => (
                 <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="font-medium text-sm">{goal.name}</span>
@@ -340,7 +270,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {data.recentTransactions.map((transaction, index) => (
+              {data.recentTransactions.map((transaction: any, index: number) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <div

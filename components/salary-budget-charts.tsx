@@ -1,32 +1,11 @@
 "use client"
-
 import type React from "react"
 
 import { useEffect, useRef } from "react"
 import { Chart, registerables } from "chart.js"
+import {Card,CardHeader,CardTitle,CardDescription,CardContent} from './ui/chartscomponent/chatselements'
 
 Chart.register(...registerables)
-
-// Custom UI Components
-const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`bg-white rounded-xl shadow-sm border border-slate-200 ${className}`}>{children}</div>
-)
-
-const CardHeader = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`p-6 pb-4 ${className}`}>{children}</div>
-)
-
-const CardTitle = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <h3 className={`font-semibold text-slate-900 ${className}`}>{children}</h3>
-)
-
-const CardDescription = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <p className={`text-sm text-slate-600 mt-1 ${className}`}>{children}</p>
-)
-
-const CardContent = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`p-6 pt-0 ${className}`}>{children}</div>
-)
 
 interface DashboardData {
   monthlySalary: number
@@ -73,7 +52,6 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
   const trendChartInstance = useRef<Chart | null>(null)
 
   useEffect(() => {
-    // Salary vs Budget vs Spent Chart
     if (salaryChartRef.current) {
       if (salaryChartInstance.current) {
         salaryChartInstance.current.destroy()

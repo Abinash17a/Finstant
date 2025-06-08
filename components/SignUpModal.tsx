@@ -17,35 +17,35 @@ export default function SignUpModal({ isOpen, onClose, onSwitchToLogin }: SignUp
     lastName: "",
     password: "",
     country: "",
+    position: "",
   })
 
   const [showPassword, setShowPassword] = useState(false)
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
 
-  try {
-    const response = await fetch('/api/signup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(formData),
-    })
+    try {
+      const response = await fetch('/api/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
 
-    const data = await response.json()
+      const data = await response.json()
 
-    if (response.ok) {
-      alert('User signed up successfully!')
-      window.location.href = '/dashboard'
-    } else {
-      alert(`Signup error: ${data.error}`)
+      if (response.ok) {
+        alert('User signed up successfully!')
+      } else {
+        alert(`Signup error: ${data.error}`)
+      }
+    } catch (error) {
+      alert('Something went wrong during signup. Please try again.')
+      console.log('error', error)
     }
-  } catch (error) {
-    alert('Something went wrong during signup. Please try again.')
-    console.log('error',error)
   }
-}
 
   if (!isOpen) return null
 
@@ -152,6 +152,18 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <option value="BR">Brazil</option>
                   <option value="MX">Mexico</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Designation</label>
+                <input
+                  type="text"
+                  value={formData.position}
+                  onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ED7F1] focus:border-transparent"
+                  placeholder="Enter your Designation"
+                  required
+                />
               </div>
 
               <button

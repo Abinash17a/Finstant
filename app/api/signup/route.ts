@@ -4,9 +4,9 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcrypt'
 
 export async function POST(req: NextRequest) {
-  const { email, firstName ,lastName , password, country } = await req.json()
+  const { email, firstName ,lastName , password, country , position } = await req.json()
 
-  if (!email || !firstName || !lastName || !password || !country) {
+  if (!email || !firstName || !lastName || !password || !country || !position) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
         last_name:lastName,
         password_hash: hashedPassword,
         country,
+        position,
       },
     })
 

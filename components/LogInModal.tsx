@@ -45,7 +45,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignUp }: LoginM
       }
       localStorage.setItem("token", data.token)
       // On success
-      alert('User signed up successfully!')
+      console.log('User signed up successfully!')
       window.location.href = '/dashboard'
     } catch (err) {
       setError("An unexpected error occurred")
