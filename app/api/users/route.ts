@@ -5,12 +5,10 @@ import { getUserFromToken } from '@/lib/utils'
 
 export async function PUT(req: NextRequest) {
   try {
-    console.log("ïm here" )
     const token = req.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
     const id = getUserFromToken(req);
-    console.log("ïm here2-----",id)
     if (!id) return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
 
     const body = await req.json();

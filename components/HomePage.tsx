@@ -6,7 +6,8 @@ import SalaryBudgetCharts from "./salary-budget-charts"
 // import { getDashboardData } from "./actions"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/chartscomponent/chatselements'
 import Link from "next/link"
-import { formatWord, getUserFromauthToken } from "@/lib/utils"
+import { formatWord, getUserFromauthToken } from "../lib/utils"
+import { Playwrite_BE_VLG } from "next/font/google"
 const Button = ({
   children,
   className = "",
@@ -72,8 +73,19 @@ const Progress = ({
 
 export default function DashboardPage() {
 
+
+
   const [data, setData] = useState<any>([{}]);
   const [loading, setLoading] = useState(true);
+  const [advice, setAdvice] = useState<string>("");
+  const [showAdvice, setShowAdvice] = useState(false);
+  const [categories, setCategories] = useState(data.budgetCategories);
+   const [isEditing, setIsEditing] = useState(false);
+
+
+
+
+
 
   const fetchDashboardData = async () => {
     try {
@@ -109,10 +121,76 @@ export default function DashboardPage() {
     }
   };
 
+  const getAdvice = async () => {
+    const randomSuffix = Math.floor(Math.random() * 10000);
+    const prompt = `<s>[INST] A user spent ₹18500 this month, has a budget of ₹20000, top category is Dining, and spending increased by 18%. Give a fun 2-sentence summary and a playful saving tip. Ignore this: ${randomSuffix} [/INST]`;
+    const res = await fetch('/api/huggingface', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: prompt,
+      })
+    });
+
+
+    const data = await res.json();
+    console.log("data in getAdvice", data)
+    setAdvice(data.advice);
+  };
 
   useEffect(() => {
     fetchDashboardData();
+    // getAdvice();
+    // console.log(data.budgetCategories, "data in useEffect")
+
   }, []);
+  useEffect(() => {
+    // getAdvice();
+    setCategories(data.budgetCategories)
+
+  }, [data]);
+
+  const saveChanges = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('User not authenticated');
+      return;
+    }
+    const res = await fetch('/api/updateBudget', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ categories }),
+    });
+
+    if (!res.ok) alert('Failed to save changes');
+    else alert('Budget updated successfully');
+  };
+
+
+  useEffect(() => {
+    console.log(advice, "advice in useEffect")
+    if (
+      advice &&
+      advice !== 'No advice available.' &&
+      advice !== 'No tip found.'
+    ) {
+      setShowAdvice(false);
+
+      // Auto-hide after 10 seconds
+      const timer = setTimeout(() => setShowAdvice(false), 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [advice]);
+
+  const handleBudgetChange = (index: number, value: number) => {
+    const updated = [...categories];
+    updated[index].budget = value;
+    setCategories(updated);
+  };
+
 
   if (loading) return <p>Loading...</p>;
   if (!data) return <p>No data available</p>;
@@ -207,32 +285,60 @@ export default function DashboardPage() {
         {/* Budget Categories & Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Budget Categories */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-xl">Budget Categories</CardTitle>
-              <CardDescription>Track spending across different categories</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {data.budgetCategories.map((category: any, index: number) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${category.color}`}></div>
-                      <span className="font-medium">{category.name}</span>
-                      <Badge variant={category.spent > category.budget ? "destructive" : "secondary"}>
-                        {category.spent > category.budget ? "Over Budget" : "On Track"}
-                      </Badge>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold">₹{category.spent.toLocaleString()}</div>
-                      <div className="text-sm text-slate-500">of ₹{category.budget.toLocaleString()}</div>
-                    </div>
-                  </div>
-                  <Progress value={(category.spent / category.budget) * 100} className="h-2" />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+         <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle className="text-xl">Budget Categories</CardTitle>
+        <CardDescription>
+          {isEditing ? "Adjust budget and save your changes" : "Adjust budget manually if needed"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {categories?.map((category: any, index: number) => (
+          <div key={index} className="space-y-2">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${category.color}`}></div>
+                <span className="font-medium">{category.name}</span>
+                <Badge variant={category.spent > category.budget ? "destructive" : "secondary"}>
+                  {category.spent > category.budget ? "Over Budget" : "On Track"}
+                </Badge>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold">₹{category.spent.toLocaleString()}</div>
+                <div className="text-sm text-slate-500">of ₹{category.budget.toLocaleString()}</div>
+              </div>
+            </div>
+
+            {/* Budget Slider */}
+            <div>
+              <label className="text-sm text-slate-600">Adjust Budget</label>
+              <input
+                type="range"
+                min={category.spent}
+                max={100000}
+                value={category.budget}
+                disabled={!isEditing}
+                onChange={(e) => handleBudgetChange(index, Number(e.target.value))}
+                className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <Progress value={(category.spent / category.budget) * 100} className="h-2 mt-1" />
+            </div>
+          </div>
+        ))}
+
+        <Button
+          onClick={() => {
+            if (isEditing) {
+              saveChanges();
+            }
+            setIsEditing(!isEditing);
+          }}
+        >
+          {isEditing ? "Save Changes" : "Change Budget"}
+        </Button>
+      </CardContent>
+    </Card>
+
 
           {/* Financial Goals */}
           <Card>
@@ -296,6 +402,13 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      {/* Floating Financial Tip */}
+      {showAdvice && (
+        <div className="fixed bottom-6 left-6 z-50 max-w-sm p-4 rounded-2xl shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-white animate-fadeIn">
+          <h4 className="text-sm font-semibold mb-1 uppercase tracking-wider">💡 Financial Tip</h4>
+          <p className="text-sm leading-relaxed">{advice}</p>
+        </div>
+      )}
     </div>
   )
 }

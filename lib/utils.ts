@@ -1,19 +1,13 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import jwt from 'jsonwebtoken'
+import axios from 'axios';
 
-
-
-
-
-const urlMap = new Map<string, string>()
-const baseURL = 'https://short.ly/' // Your domain
-let idCounter = 1000 // Starting ID
 
 
 
 const SECRET = process.env.JWT_SECRET || 'your-secret-key'
-console.log("sectret in utils", SECRET)
+// console.log("sectret in utils", SECRET)
 
 
 
@@ -63,4 +57,44 @@ export function formatWord(input:any) {
     .split('_')
     .map((word: any) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+}
+
+export async function getHuggingFaceAdvice(prompt: string) {
+  const HUGGING_FACE_API_TOKEN = process.env.HUGGINGFACE_API_KEY;
+
+  const res = await axios.post(
+    'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3',
+    {
+      inputs: prompt,
+      parameters: {
+        temperature: 0.8,
+        top_p: 0.95,
+        max_new_tokens: 200,
+      },
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${HUGGING_FACE_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  // return res.data?.[0]?.generated_text || 'No advice available.';
+  console.log("hello",res.data?.[0]?.generated_text)
+  const result = await extractSavingTip(res.data?.[0]?.generated_text)
+  return result || 'No advice available.';
+}
+
+
+export async function extractSavingTip(advice: string) {
+  console.log(advice, "advice in extractSavingTip")
+  const firstQuoteIndex = advice.indexOf('"');
+  if (firstQuoteIndex === -1) return 'No tip found.';
+
+  const actualAdvice = advice.slice(firstQuoteIndex + 1).trim();
+  const sentences = actualAdvice.split(/[.!?]\s+/);
+  if (sentences.length < 2) return 'No tip found.';
+
+  return sentences.slice(1).join('. ') + '.';
 }
