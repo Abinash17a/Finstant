@@ -48,20 +48,6 @@ model transactions {
   @@map("transactions")
 }
 
-model budget_cat_allocations {
-  id         Int       @id @default(autoincrement())
-  user_id    String    @db.Uuid
-  name       String
-  budget     Decimal   @db.Decimal
-  spent      Decimal?  @default(0) @db.Decimal
-  color      String?
-  month      Int
-  year       Int
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-
-  @@unique([user_id, name, month, year], map: "unique_user_category_month_year")
-}
-
 model financial_goals {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_id    String    @db.Uuid
@@ -69,6 +55,37 @@ model financial_goals {
   target     Decimal   @db.Decimal
   current    Decimal   @db.Decimal
   created_at DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model category_colors {
+  category String @id
+  color    String
+}
+
+model budget_cat_allocations {
+  id         Int       @id @default(autoincrement())
+  user_id    String    @db.Uuid
+  name       String
+  budget     Decimal   @db.Decimal
+  color      String?
+  month      Int
+  year       Int
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+
+  @@unique([user_id, name, month, year], map: "unique_user_category_per_month")
+}
+
+model monthly_summary {
+  id           Int       @id @default(autoincrement())
+  user_id      String    @db.Uuid
+  month        Int
+  year         Int
+  salary       Decimal   @db.Decimal
+  total_budget Decimal   @db.Decimal
+  total_spent  Decimal   @db.Decimal
+  created_at   DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([user_id, month, year], map: "unique_summary_per_user_month")
 }
 
 enum TransactionCategory {

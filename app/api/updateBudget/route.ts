@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
                 where: {
                     user_id: userId,
                     name: cat.name,
+
                 },
                 data: { budget: cat.budget },
             })

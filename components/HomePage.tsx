@@ -6,7 +6,7 @@ import SalaryBudgetCharts from "./salary-budget-charts"
 // import { getDashboardData } from "./actions"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/chartscomponent/chatselements'
 import Link from "next/link"
-import { formatWord, getUserFromauthToken } from "../lib/utils"
+import { formatWord, generateLastMonthSummary, getMonthlySummaryData, getUserFromauthToken } from "../lib/utils"
 import { Playwrite_BE_VLG } from "next/font/google"
 const Button = ({
   children,
@@ -73,16 +73,54 @@ const Progress = ({
 
 export default function DashboardPage() {
 
-
+  const today = new Date();
 
   const [data, setData] = useState<any>([{}]);
   const [loading, setLoading] = useState(true);
   const [advice, setAdvice] = useState<string>("");
   const [showAdvice, setShowAdvice] = useState(false);
-  const [categories, setCategories] = useState(data.budgetCategories);
-   const [isEditing, setIsEditing] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [curmonth, setCMonth] = useState(today.getMonth() + 1);
+  const [curyear, setCurYear] = useState(today.getFullYear());
+  const [monthlyData, setmonthlyData] = useState<any[]>([]);
 
+  const getbudgetcategories = async () => {
+    const token = localStorage.getItem('token');
+    const user_id = await getUserFromauthToken(token ?? '');
 
+    const res = await fetch(`/api/budget?userId=${user_id}&month=${curmonth}&year=${curyear}`);
+    const budgetCategories = await res.json();
+
+    const parsed = budgetCategories.map((item: any) => ({
+      ...item,
+      budget: Number(item.budget),
+      spent: Number(item.spent)
+    }));
+
+    setCategories(parsed);
+  };
+
+  const generateSummary = async () => {
+    const token = localStorage.getItem('token');
+    const userId = await getUserFromauthToken(token ?? '');
+    try {
+      const res = await fetch(`/api/monthlybugetsummary?userId=${userId}`, {
+        method: 'POST',
+      });
+
+      const monthdata = await res.json();
+      console.log("monthdata in generateSummary", monthdata)
+      setmonthlyData(monthdata);
+      if (!res.ok) {
+        console.error('Failed to generate summary:', data.error);
+      } else {
+        console.log('Summary data:', data);
+      }
+    } catch (error) {
+      console.error('Error calling summary API:', error);
+    }
+  };
 
 
 
@@ -98,7 +136,6 @@ export default function DashboardPage() {
       }
 
       const limit = 5;
-
       const res = await fetch(`/api/dashboard?userId=${user_id}&limit=${limit}`, {
         method: 'GET',
         headers: {
@@ -141,33 +178,54 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchDashboardData();
     // getAdvice();
-    // console.log(data.budgetCategories, "data in useEffect")
+    getbudgetcategories();
+    generateSummary();
 
   }, []);
   useEffect(() => {
     // getAdvice();
-    setCategories(data.budgetCategories)
-
+    generateSummary();
+     console.log("Updated dashboard data:", data);
+console.log("total budget",data.totalBudget);
   }, [data]);
 
-  const saveChanges = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      alert('User not authenticated');
-      return;
-    }
+const saveChanges = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    alert('User not authenticated');
+    return;
+  }
+
+  const totalCategoryBudget = categories.reduce((sum, cat) => sum + Number(cat.budget || 0), 0);
+
+  if (totalCategoryBudget > data.totalBudget) {
+    alert(`Total category budgets exceed your allowed budget of ₹${data.totalBudget}`);
+    return;
+  }
+
+  try {
     const res = await fetch('/api/updateBudget', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ categories }),
     });
 
-    if (!res.ok) alert('Failed to save changes');
-    else alert('Budget updated successfully');
-  };
+    console.log("categories in saveChanges", categories[0].budget);
+
+    if (!res.ok) {
+      alert('Failed to save changes');
+    } else {
+      alert('Budget updated successfully');
+    }
+  } catch (error) {
+    console.error('Error updating budget:', error);
+    alert('An error occurred while saving');
+  }
+};
+
 
 
   useEffect(() => {
@@ -190,6 +248,7 @@ export default function DashboardPage() {
     updated[index].budget = value;
     setCategories(updated);
   };
+
 
 
   if (loading) return <p>Loading...</p>;
@@ -278,66 +337,67 @@ export default function DashboardPage() {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Suspense fallback={<div className="h-96 bg-white rounded-lg animate-pulse" />}>
-            <SalaryBudgetCharts data={data} />
+           <SalaryBudgetCharts data={{ ...data, monthlyData }} />
           </Suspense>
         </div>
 
         {/* Budget Categories & Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Budget Categories */}
-         <Card className="lg:col-span-2">
-      <CardHeader>
-        <CardTitle className="text-xl">Budget Categories</CardTitle>
-        <CardDescription>
-          {isEditing ? "Adjust budget and save your changes" : "Adjust budget manually if needed"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {categories?.map((category: any, index: number) => (
-          <div key={index} className="space-y-2">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className={`w-3 h-3 rounded-full ${category.color}`}></div>
-                <span className="font-medium">{category.name}</span>
-                <Badge variant={category.spent > category.budget ? "destructive" : "secondary"}>
-                  {category.spent > category.budget ? "Over Budget" : "On Track"}
-                </Badge>
-              </div>
-              <div className="text-right">
-                <div className="font-semibold">₹{category.spent.toLocaleString()}</div>
-                <div className="text-sm text-slate-500">of ₹{category.budget.toLocaleString()}</div>
-              </div>
-            </div>
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-xl">Budget Categories</CardTitle>
+              <CardDescription>
+                {isEditing ? "Adjust budget and save your changes" : "Adjust budget manually if needed"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {categories?.map((category: any, index: number) => (
+                <div key={index} className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${category.color}`}></div>
+                      <span className="font-medium">{category.name}</span>
+                      <Badge variant={category.spent > category.budget ? "destructive" : "secondary"}>
+                        {category.spent > category.budget ? "Over Budget" : "On Track"}
+                      </Badge>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">₹{category.spent.toLocaleString()}</div>
+                      <div className="text-sm text-slate-500">of ₹{category.budget.toLocaleString()}</div>
+                    </div>
+                  </div>
 
-            {/* Budget Slider */}
-            <div>
-              <label className="text-sm text-slate-600">Adjust Budget</label>
-              <input
-                type="range"
-                min={category.spent}
-                max={100000}
-                value={category.budget}
-                disabled={!isEditing}
-                onChange={(e) => handleBudgetChange(index, Number(e.target.value))}
-                className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <Progress value={(category.spent / category.budget) * 100} className="h-2 mt-1" />
-            </div>
-          </div>
-        ))}
+                  {/* Budget Slider */}
+                  <div>
+                    <label className="text-sm text-slate-600">Adjust Budget</label>
+                    <input
+                      type="range"
+                      min={category.spent}
+                      max={100000}
+                      value={category.budget}
+                      disabled={!isEditing}
+                      onChange={(e) => handleBudgetChange(index, Number(e.target.value))}
+                      className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <Progress value={(category.spent / category.budget) * 100} className="h-2 mt-1" />
+                  </div>
+                </div>
+              ))}
 
-        <Button
-          onClick={() => {
-            if (isEditing) {
-              saveChanges();
-            }
-            setIsEditing(!isEditing);
-          }}
-        >
-          {isEditing ? "Save Changes" : "Change Budget"}
-        </Button>
-      </CardContent>
-    </Card>
+
+              <Button
+                onClick={() => {
+                  if (isEditing) {
+                    saveChanges();
+                  }
+                  setIsEditing(!isEditing);
+                }}
+              >
+                {isEditing ? "Save Changes" : "Change Budget"}
+              </Button>
+            </CardContent>
+          </Card>
 
 
           {/* Financial Goals */}

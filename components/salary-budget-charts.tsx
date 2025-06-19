@@ -215,7 +215,6 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
         })
       }
     }
-
     return () => {
       if (salaryChartInstance.current) salaryChartInstance.current.destroy()
       if (categoryChartInstance.current) categoryChartInstance.current.destroy()

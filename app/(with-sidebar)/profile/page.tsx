@@ -235,7 +235,7 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="mt-4 sm:mt-0 sm:ml-6 flex-1">
-                  <h2 className="text-3xl font-bold text-white">
+                  <h2 className="text-3xl font-bold !text-white">
                     {profile.first_name} {profile.last_name}
                   </h2>
                   <p className="text-lg text-indigo-600 font-medium mt-1">{profile.position}</p>
