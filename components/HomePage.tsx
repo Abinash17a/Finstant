@@ -249,6 +249,8 @@ const saveChanges = async () => {
     setCategories(updated);
   };
 
+  console.log("categories in dashboard", data,monthlyData);
+
 
 
   if (loading) return <p>Loading...</p>;

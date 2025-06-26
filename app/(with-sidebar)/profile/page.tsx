@@ -3,36 +3,37 @@
 import { useEffect, useState, useRef } from "react"
 import { Camera, Edit3, Mail, Phone, MapPin, Building2, CreditCard, Calendar, User, Settings } from "lucide-react"
 import { getUserFromauthToken } from "@/lib/utils"
+import { UserProfile, EditedProfile } from "../../types/user";
 
-interface UserProfile {
-  first_name?: string
-  last_name?: string
-  email?: string
-  avatar_url?: string
-  position?: string
-  base_salary?: string
-  monthly_budget?: string
-  address?: string
-  zip_code?: string
-  country?: string
-  created_at?: string
-  department?: string
-  phone_number?: string
-}
+// interface UserProfile {
+//   first_name?: string
+//   last_name?: string
+//   email?: string
+//   avatar_url?: string
+//   position?: string
+//   base_salary?: string
+//   monthly_budget?: string
+//   address?: string
+//   zip_code?: string
+//   country?: string
+//   created_at?: string
+//   department?: string
+//   phone_number?: string
+// }
 
-interface EditedProfile {
-  first_name?: string
-  last_name?: string
-  avatar_url?: string
-  position?: string
-  base_salary?: string
-  monthly_budget?: string
-  address?: string
-  zip_code?: string
-  country?: string
-  department?: string
-  phone_number?: string
-}
+// interface EditedProfile {
+//   first_name?: string
+//   last_name?: string
+//   avatar_url?: string
+//   position?: string
+//   base_salary?: string
+//   monthly_budget?: string
+//   address?: string
+//   zip_code?: string
+//   country?: string
+//   department?: string
+//   phone_number?: string
+// }
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)

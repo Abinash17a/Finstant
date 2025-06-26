@@ -5,6 +5,8 @@ import axios from 'axios';
 import { prisma } from "./prisma";
 // import { prisma } from "@/lib/prisma";
 import dayjs from "dayjs";
+// import { Section } from "@/components/InsightRenderer";
+
 
 
 
@@ -156,9 +158,6 @@ export const generateLastMonthSummary = async (userId: string) => {
   const currentMonth = now.month() + 1;
   const currentYear = now.year();
 
-  console.log(`[generateLastMonthSummary] For userId: ${userId}`);
-  console.log(`[generateLastMonthSummary] Current month: ${currentMonth}, Year: ${currentYear}`);
-
   // Get user info (salary and monthly budget)
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -168,10 +167,7 @@ export const generateLastMonthSummary = async (userId: string) => {
     },
   });
 
-  console.log(`[generateLastMonthSummary] User data:`, user);
-
   if (!user) {
-    console.log(`[generateLastMonthSummary] No user found with ID: ${userId}`);
     return;
   }
 
@@ -187,8 +183,6 @@ export const generateLastMonthSummary = async (userId: string) => {
     },
     _sum: { amount: true },
   });
-
-  console.log(`[generateLastMonthSummary] Total spent:`, spent._sum.amount ?? 0);
 
   // Check if current month's summary already exists
   const existing = await prisma.monthly_summary.findUnique({
@@ -218,7 +212,6 @@ export const generateLastMonthSummary = async (userId: string) => {
       },
     });
 
-    console.log(`[generateLastMonthSummary] Monthly summary updated:`, updated);
   } else {
     // Create new if it doesn't exist
     const created = await prisma.monthly_summary.create({
@@ -231,8 +224,6 @@ export const generateLastMonthSummary = async (userId: string) => {
         total_spent: spent._sum.amount ?? 0,
       },
     });
-
-    console.log(`[generateLastMonthSummary] Monthly summary created:`, created);
   }
 };
 
@@ -253,6 +244,241 @@ export const getMonthlySummaryData = async (userId: string) => {
     budget: Number(summary.total_budget),
     spent: Number(summary.total_spent),
   }));
-console.log("monthlyData", monthlyData, "userId", userId)
   return monthlyData;
 };
+
+export async function generateInsights(data: string) {
+
+  try {
+    const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
+    console.log("GEMINI_API_KEY", GEMINI_API_KEY );
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not set in environment variables.");
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: data }]
+            }
+          ]
+        })
+      }
+    );
+
+    const result = await response.json();
+    console.log(result, "raw result from Gemini");
+
+    const rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+    console.log(rawText, "rawText in generateInsights");
+
+    if (!rawText) {
+      throw new Error("Invalid response from Gemini API.");
+    }
+
+    // ✅ Clean markdown code block markers (```json ... ```)
+    let cleaned = rawText.trim();
+    if (cleaned.startsWith("```json") || cleaned.startsWith("```")) {
+      cleaned = cleaned.replace(/^```(?:json)?/, "").replace(/```$/, "").trim();
+    }
+
+    let insights;
+    try {
+      insights = JSON.parse(cleaned);
+    } catch (parseError) {
+      console.error("Error parsing response:", parseError);
+      throw new Error("Failed to parse AI response as JSON.");
+    }
+
+    console.log(insights, "insights in generateInsights");
+    const res = formatRawInsights(insights);
+    console.log(res, "res in generateInsights");
+
+    return res;
+  } catch (err) {
+    console.error("Error in generateInsights:", err);
+    throw new Error("Failed to generate insights from Gemini AI.");
+  }
+}
+
+
+
+// utils/formatInsights.ts
+export function formatRawInsights(insightText: string | any): { sections: any[] } {
+  // 1. Handle already parsed and structured input
+  if (typeof insightText === "object") {
+    if (Array.isArray(insightText.sections)) {
+      return { sections: insightText.sections };
+    }
+    // If it's a single section or malformed structure
+    return { sections: [insightText] };
+  }
+
+  // 2. Try to parse JSON string input
+  if (typeof insightText === "string") {
+    try {
+      const parsed = JSON.parse(insightText);
+      if (parsed && Array.isArray(parsed.sections)) {
+        return { sections: parsed.sections };
+      }
+      if (parsed.sections) {
+        return { sections: [parsed.sections] };
+      }
+    } catch {
+      // Fall through to raw text parsing
+    }
+  }
+
+  // 3. Manual parsing from raw string input
+  const sections: any[] = [];
+
+  const summaryMatch = insightText.match(/Summary:?([\s\S]*?)(?=\n{0,1}(Suggestions|Savings|$))/i);
+  if (summaryMatch) {
+    sections.push({ type: "heading", level: 2, text: "Summary" });
+
+    const summaryContent = summaryMatch[1].trim();
+    const paragraphMatch = summaryContent.match(/([^.]+?\.)/); // get first sentence
+    if (paragraphMatch) {
+      sections.push({ type: "paragraph", text: paragraphMatch[1].trim() });
+    }
+
+    const listItems = [...summaryContent.matchAll(/([A-Z_&\s]+):\s?₹?[\d,]+/gi)].map((match) => ({
+      text: match[0].trim(),
+    }));
+    if (listItems.length > 0) {
+      sections.push({ type: "list", items: listItems });
+    }
+  }
+
+  const savingsMatch = insightText.match(/Savings:?([\s\S]*?)(?=\n{0,1}(Suggestions|Summary|$))/i);
+  if (savingsMatch) {
+    const text = savingsMatch[1].trim();
+    sections.push({ type: "heading", level: 2, text: "Savings" });
+
+    const savingsItems = [...text.matchAll(/(May|June|July|August)[\s:]+₹?[\d,]+/gi)].map((match) => ({
+      text: match[0].trim(),
+    }));
+
+    if (savingsItems.length > 0) {
+      sections.push({ type: "list", items: savingsItems });
+    }
+  }
+
+  const suggestionsMatch = insightText.match(/Suggestions:?([\s\S]*)/i);
+  if (suggestionsMatch) {
+    const text = suggestionsMatch[1].trim();
+
+    interface SuggestionItem {
+      text: string;
+    }
+
+    const suggestionLines: SuggestionItem[] = text
+      .split(/\n|\. /)
+      .map((line: string) => line.trim())
+      .filter((line: string) => line.length > 10)
+      .map((line: string) => ({ text: line }));
+
+    if (suggestionLines.length) {
+      sections.push({ type: "heading", level: 2, text: "Suggestions" });
+      sections.push({ type: "list", items: suggestionLines });
+    }
+  }
+
+  return { sections };
+}
+
+export const dbinsightsDataModifier = async (dbinsightsData: any): Promise<string> => {
+  if (!dbinsightsData) throw new Error("Missing DB insights data");
+
+  const {
+    incomeExpense = [],
+    budgetUtilization = [],
+    savingsTrend = [],
+    budgetDistribution = [],
+    topSpending = [],
+    today
+  } = dbinsightsData;
+
+  // Build top spending section
+  const topSpendingFormatted = topSpending
+    .map((item: any) => `- ${item.category}: ₹${item.total_spent}`)
+    .join("\n");
+
+  // Budget utilization
+  const budgetUtilizationFormatted = budgetUtilization
+    .map((item: any) => {
+      return `- ${item.category}: Spent ₹${item.spent} of ₹${item.budget}`;
+    })
+    .join("\n");
+
+  // Savings trend (pick last two for recent comparison)
+  const sortedSavings = [...savingsTrend].sort((a: any, b: any) =>
+    b.year !== a.year ? b.year - a.year : b.month - a.month
+  );
+
+  const recentSavings = sortedSavings.slice(0, 2);
+  const savingsFormatted = recentSavings
+    .map((item: any) => `- ${getMonthName(item.month)}: ₹${item.savings}`)
+    .join("\n");
+
+  // Income & Expense Summary
+  const income = incomeExpense.find((i: any) => i.type === "Income (Salary)")?.total || 0;
+  const repayments = incomeExpense.find((i: any) => i.type === "Repayments Received")?.total || 0;
+  const expenses = incomeExpense.find((i: any) => i.type === "Expense")?.total || 0;
+
+  // Instruction + Prompt Builder
+  const prompt = `
+You are a financial assistant. Analyze the following financial data and return insights in valid JSON string format.
+
+Instructions:
+- The output must be a **single JSON object** as a string.
+- Do not include any explanations or comments—only return valid JSON in the format described below.
+- If a category has spent more than 80% of its budget and it is early in the month, mark it as overspending.
+- If a category is within limits, acknowledge it as well-managed.
+- Base suggestions on data, budget utilization, and time of month (today is ${today}).
+
+Return the output strictly in this JSON structure:
+{
+  "sections": [
+    { "type": "heading", "level": 2, "text": "Summary" },
+    { "type": "paragraph", "text": "..." },
+    { "type": "list", "items": [{ "text": "..." }] },
+    { "type": "heading", "level": 2, "text": "Suggestions" },
+    { "type": "list", "items": [{ "text": "..." }] }
+  ]
+}
+
+Data:
+Top Spending:
+${topSpendingFormatted || "- None"}
+
+Budget Utilization:
+${budgetUtilizationFormatted || "- None"}
+
+Savings:
+${savingsFormatted || "- None"}
+
+Income:
+- Salary: ₹${income}
+- money i got back from friends that i gave them previously: ₹${repayments}
+Expenses: ₹${expenses}
+  `.trim();
+
+  console.log("Generated prompt---------------------:", prompt);
+  return prompt;
+};
+
+// Utility to convert month number to name
+const getMonthName = (monthNum: number): string => {
+  const date = new Date();
+  date.setMonth(monthNum - 1);
+  return date.toLocaleString("default", { month: "long" });
+};
+
+
+
