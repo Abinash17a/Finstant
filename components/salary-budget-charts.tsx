@@ -3,7 +3,9 @@ import type React from "react"
 
 import { useEffect, useRef } from "react"
 import { Chart, registerables } from "chart.js"
-import {Card,CardHeader,CardTitle,CardDescription,CardContent} from './ui/chartscomponent/chatselements'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/chartscomponent/chatselements'
+import { CloudCog } from "lucide-react"
+import DashboardPage from "./HomePage"
 
 Chart.register(...registerables)
 
@@ -50,13 +52,14 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
   const salaryChartInstance = useRef<Chart | null>(null)
   const categoryChartInstance = useRef<Chart | null>(null)
   const trendChartInstance = useRef<Chart | null>(null)
+  console.log("Dashboard Data that we got ----", data)
 
   useEffect(() => {
     if (salaryChartRef.current) {
       if (salaryChartInstance.current) {
         salaryChartInstance.current.destroy()
       }
-
+      console.log("categoryChartRef", categoryChartRef.current)
       const ctx = salaryChartRef.current.getContext("2d")
       if (ctx) {
         salaryChartInstance.current = new Chart(ctx, {
@@ -125,11 +128,11 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
         categoryChartInstance.current = new Chart(ctx, {
           type: "doughnut",
           data: {
-            labels: data.categorySpending.map((item) => item.category),
+            labels: data.categorySpending?.map((item) => item.category),
             datasets: [
               {
-                data: data.categorySpending.map((item) => item.amount),
-                backgroundColor: data.categorySpending.map((item) => item.color),
+                data: data.categorySpending?.map((item) => item.amount),
+                backgroundColor: data.categorySpending?.map((item) => item.color),
                 borderWidth: 3,
                 borderColor: "#ffffff",
               },

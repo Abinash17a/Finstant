@@ -1,4 +1,4 @@
-import { PrismaClient, TransactionCategory, TransactionType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 const prisma = new PrismaClient();
@@ -29,13 +29,13 @@ export async function POST(req: NextRequest) {
         user_id,
         amount: parseFloat(amount),
         date: new Date(date),
-        category: category.toUpperCase() as TransactionCategory,
+        category: category.toUpperCase(),
         sub_category,
         payment_method,
         description,
         location,
         tags,
-        type: type.toUpperCase() as TransactionType,
+        type: type.toUpperCase(),
       },
     });
 

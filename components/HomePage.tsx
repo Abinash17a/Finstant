@@ -71,6 +71,21 @@ const Progress = ({
   </div>
 )
 
+const PRESET_COLORS = [
+  "#6366F1", // Indigo
+  "#10B981", // Emerald
+  "#3B82F6", // Blue
+  "#A855F7", // Purple
+  "#F97316", // Orange
+  "#EC4899", // Pink
+  "#EF4444", // Red
+  "#F59E0B", // Amber
+  "#06B6D4", // Cyan
+  "#14B8A6", // Teal
+  "#8B5CF6", // Violet
+  "#64748B"  // Slate
+];
+
 export default function DashboardPage() {
 
   const today = new Date();
@@ -84,13 +99,42 @@ export default function DashboardPage() {
   const [curmonth, setCMonth] = useState(today.getMonth() + 1);
   const [curyear, setCurYear] = useState(today.getFullYear());
   const [monthlyData, setmonthlyData] = useState<any[]>([]);
+  const [monthlyLimit, setMonthlyLimit] = useState<number>(0);
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+  const [modalCategories, setModalCategories] = useState<any[]>([]);
+
+  const fetchProfileLimit = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      const res = await fetch("/api/profile", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        const profileData = await res.json();
+        setMonthlyLimit(Number(profileData.monthly_budget || 0));
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile monthly budget limit:", error);
+    }
+  };
 
   const getbudgetcategories = async () => {
+    console.log('🔍 getbudgetcategories called with:', { curmonth, curyear });
+
     const token = localStorage.getItem('token');
     const user_id = await getUserFromauthToken(token ?? '');
 
+    console.log('👤 User ID:', user_id);
+    console.log('📅 Fetching budget for:', curmonth, curyear);
+
     const res = await fetch(`/api/budget?userId=${user_id}&month=${curmonth}&year=${curyear}`);
     const budgetCategories = await res.json();
+
+    console.log('📊 Raw budget API response:', budgetCategories);
+    console.log('📊 Response status:', res.status);
 
     const parsed = budgetCategories.map((item: any) => ({
       ...item,
@@ -98,6 +142,7 @@ export default function DashboardPage() {
       spent: Number(item.spent)
     }));
 
+    console.log('✅ Parsed categories:', parsed);
     setCategories(parsed);
   };
 
@@ -180,53 +225,53 @@ export default function DashboardPage() {
     // getAdvice();
     getbudgetcategories();
     generateSummary();
+    fetchProfileLimit();
 
   }, []);
+
   useEffect(() => {
     // getAdvice();
     generateSummary();
-     console.log("Updated dashboard data:", data);
-console.log("total budget",data.totalBudget);
+    console.log("Updated dashboard data:", data);
+    console.log("total budget", data.totalBudget);
   }, [data]);
 
-const saveChanges = async () => {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    alert('User not authenticated');
-    return;
-  }
-
-  const totalCategoryBudget = categories.reduce((sum, cat) => sum + Number(cat.budget || 0), 0);
-
-  if (totalCategoryBudget > data.totalBudget) {
-    alert(`Total category budgets exceed your allowed budget of ₹${data.totalBudget}`);
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/updateBudget', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ categories }),
-    });
-
-    console.log("categories in saveChanges", categories[0].budget);
-
-    if (!res.ok) {
-      alert('Failed to save changes');
-    } else {
-      alert('Budget updated successfully');
+  const saveChanges = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('User not authenticated');
+      return;
     }
-  } catch (error) {
-    console.error('Error updating budget:', error);
-    alert('An error occurred while saving');
-  }
-};
 
+    const totalCategoryBudget = categories.reduce((sum, cat) => sum + Number(cat.budget || 0), 0);
 
+    if (totalCategoryBudget > data.totalBudget) {
+      alert(`Total category budgets exceed your allowed budget of ₹${data.totalBudget}`);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/updateBudget', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ categories }),
+      });
+
+      console.log("categories in saveChanges", categories[0].budget);
+
+      if (!res.ok) {
+        alert('Failed to save changes');
+      } else {
+        alert('Budget updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating budget:', error);
+      alert('An error occurred while saving');
+    }
+  };
 
   useEffect(() => {
     console.log(advice, "advice in useEffect")
@@ -249,9 +294,7 @@ const saveChanges = async () => {
     setCategories(updated);
   };
 
-  console.log("categories in dashboard", data,monthlyData);
-
-
+  console.log("Categories in dashboard", data, monthlyData);
 
   if (loading) return <p>Loading...</p>;
   if (!data) return <p>No data available</p>;
@@ -289,7 +332,7 @@ const saveChanges = async () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{data.monthlySalary.toLocaleString()}</div>
+              <div className="text-2xl font-bold">₹{data.monthlySalary?.toLocaleString()}</div>
               <p className="text-xs opacity-80 mt-1">+5.2% from last month</p>
             </CardContent>
           </Card>
@@ -336,10 +379,12 @@ const saveChanges = async () => {
           </Card>
         </div>
 
+        {/* commented for fix */}
+
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Suspense fallback={<div className="h-96 bg-white rounded-lg animate-pulse" />}>
-           <SalaryBudgetCharts data={{ ...data, monthlyData }} />
+            <SalaryBudgetCharts data={{ ...data, monthlyData }} />
           </Suspense>
         </div>
 
@@ -354,11 +399,16 @@ const saveChanges = async () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {(() => {
+                console.log('🔍 Categories data in HomePage:', categories);
+                console.log('📊 Categories length:', categories?.length);
+                return null;
+              })()}
               {categories?.map((category: any, index: number) => (
                 <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${category.color}`}></div>
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: category.color || '#6366F1' }}></div>
                       <span className="font-medium">{category.name}</span>
                       <Badge variant={category.spent > category.budget ? "destructive" : "secondary"}>
                         {category.spent > category.budget ? "Over Budget" : "On Track"}
@@ -388,16 +438,32 @@ const saveChanges = async () => {
               ))}
 
 
-              <Button
-                onClick={() => {
-                  if (isEditing) {
-                    saveChanges();
-                  }
-                  setIsEditing(!isEditing);
-                }}
-              >
-                {isEditing ? "Save Changes" : "Change Budget"}
-              </Button>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  onClick={() => {
+                    if (isEditing) {
+                      saveChanges();
+                    }
+                    setIsEditing(!isEditing);
+                  }}
+                >
+                  {isEditing ? "Save Changes" : "Change Budget"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setModalCategories(categories.map(c => ({
+                      name: c.name,
+                      budget: Number(c.budget),
+                      color: c.color || '#6366F1'
+                    })));
+                    setIsManageModalOpen(true);
+                  }}
+                >
+                  Manage Categories
+                </Button>
+              </div>
+
             </CardContent>
           </Card>
 
@@ -430,8 +496,10 @@ const saveChanges = async () => {
           </Card>
         </div>
 
+
+
         {/* Recent Transactions */}
-        <Card>
+        /* <Card>
           <CardHeader>
             <CardTitle className="text-xl">Recent Transactions</CardTitle>
             <CardDescription>Your latest financial activity</CardDescription>
@@ -469,6 +537,222 @@ const saveChanges = async () => {
         <div className="fixed bottom-6 left-6 z-50 max-w-sm p-4 rounded-2xl shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-white animate-fadeIn">
           <h4 className="text-sm font-semibold mb-1 uppercase tracking-wider">💡 Financial Tip</h4>
           <p className="text-sm leading-relaxed">{advice}</p>
+        </div>
+      )}
+
+      {/* Manage Categories Modal */}
+      {isManageModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden transition-all transform scale-100 duration-300">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Manage Budget Categories</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Configure your categories and allocated budgets (Max 12).
+                </p>
+              </div>
+              <button
+                onClick={() => setIsManageModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors text-lg font-bold"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Content - Scrollable */}
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl text-sm text-slate-700">
+                <div>
+                  <span className="font-semibold text-slate-900">Total Allocated:</span>{" "}
+                  ₹{modalCategories.reduce((sum, c) => sum + (Number(c.budget) || 0), 0).toLocaleString()}
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-900">Monthly Limit:</span>{" "}
+                  ₹{monthlyLimit.toLocaleString()}
+                </div>
+              </div>
+
+              {/* Form entries */}
+              <div className="space-y-3">
+                {modalCategories.map((cat, idx) => (
+                  <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 bg-slate-50/50 rounded-xl border border-slate-100">
+                    <div className="flex-1 flex gap-3 items-center">
+                      {/* Color Indicator Selector */}
+                      <div className="relative group">
+                        <button
+                          type="button"
+                          className="w-8 h-8 rounded-full border border-white shadow-sm flex items-center justify-center text-white text-xs font-semibold cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                          style={{ backgroundColor: cat.color || '#6366F1' }}
+                          title="Click to select color"
+                        >
+                          🎨
+                        </button>
+                        <div className="hidden group-hover:flex absolute left-0 top-9 bg-white border border-slate-200 shadow-xl rounded-xl p-2.5 z-[60] grid grid-cols-4 gap-2 w-44">
+                          {PRESET_COLORS.map((color) => (
+                            <button
+                              key={color}
+                              type="button"
+                              className="w-7 h-7 rounded-full hover:scale-110 active:scale-95 transition-all"
+                              style={{ backgroundColor: color }}
+                              onClick={() => {
+                                const updated = [...modalCategories];
+                                updated[idx].color = color;
+                                setModalCategories(updated);
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Name input */}
+                      <input
+                        type="text"
+                        placeholder="Category Name (e.g. FOOD_DINING)"
+                        value={cat.name || ""}
+                        className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        onChange={(e) => {
+                          const updated = [...modalCategories];
+                          updated[idx].name = e.target.value;
+                          setModalCategories(updated);
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {/* Budget Input */}
+                      <div className="relative flex-1 sm:w-36">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={cat.budget === 0 ? "" : cat.budget}
+                          className="w-full pl-7 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                          onChange={(e) => {
+                            const updated = [...modalCategories];
+                            updated[idx].budget = Number(e.target.value);
+                            setModalCategories(updated);
+                          }}
+                        />
+                      </div>
+
+                      {/* Trash Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = modalCategories.filter((_, i) => i !== idx);
+                          setModalCategories(updated);
+                        }}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add category button */}
+              {modalCategories.length < 12 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextColor = PRESET_COLORS[modalCategories.length % PRESET_COLORS.length];
+                    setModalCategories([
+                      ...modalCategories,
+                      { name: "", budget: 0, color: nextColor }
+                    ]);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 hover:border-slate-400 text-slate-600 hover:text-slate-800 rounded-xl transition-all font-medium text-sm"
+                >
+                  ➕ Add Category
+                </button>
+              ) : (
+                <p className="text-center text-xs text-amber-600 font-medium">
+                  Maximum limit of 12 categories reached.
+                </p>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsManageModalOpen(false)}
+                className="px-4 py-2 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  // Validations
+                  const total = modalCategories.reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
+                  if (total > monthlyLimit) {
+                    alert(`Total allocated budget (₹${total.toLocaleString()}) exceeds your monthly limit (₹${monthlyLimit.toLocaleString()})! Please adjust your allocations or increase your monthly limit in your Profile.`);
+                    return;
+                  }
+
+                  const nameMap = new Set();
+                  for (const cat of modalCategories) {
+                    const trimmedName = cat.name?.trim();
+                    if (!trimmedName) {
+                      alert("Category names cannot be empty!");
+                      return;
+                    }
+                    if (nameMap.has(trimmedName.toUpperCase())) {
+                      alert(`Duplicate category name detected: "${trimmedName}". Names must be unique.`);
+                      return;
+                    }
+                    nameMap.add(trimmedName.toUpperCase());
+
+                    if (cat.budget <= 0) {
+                      alert(`Allocation for category "${trimmedName}" must be a positive number!`);
+                      return;
+                    }
+                  }
+
+                  // Save
+                  const token = localStorage.getItem('token');
+                  if (!token) {
+                    alert('User not authenticated');
+                    return;
+                  }
+
+                  try {
+                    const res = await fetch('/api/updateBudget', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        categories: modalCategories,
+                        month: curmonth,
+                        year: curyear
+                      }),
+                    });
+
+                    if (!res.ok) {
+                      alert('Failed to save categories');
+                    } else {
+                      alert('Categories updated successfully!');
+                      setIsManageModalOpen(false);
+                      // Refresh data
+                      getbudgetcategories();
+                      fetchDashboardData();
+                    }
+                  } catch (error) {
+                    console.error('Error saving categories:', error);
+                    alert('An error occurred while saving.');
+                  }
+                }}
+                className="px-4 py-2 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors text-sm shadow-sm"
+              >
+                Save Categories
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

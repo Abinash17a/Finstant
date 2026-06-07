@@ -18,26 +18,76 @@ function getUserId(req: NextRequest) {
 }
 export async function POST(req: NextRequest) {
     try {
-       const userId=getUserId(req);
-        const { categories } = await req.json();
+        const userId = getUserId(req);
+        const body = await req.json();
+        const { categories, month, year } = body;
 
-        // Validation (optional but good)
+        // Validation
         if (!userId || !Array.isArray(categories)) {
             return new NextResponse('Invalid input', { status: 400 });
         }
-        console.log(JSON.stringify(categories), "categories in updateBudget route");
-        const updatePromises = categories.map((cat: { name: string; budget: number }) =>
-            prisma.budget_cat_allocations.updateMany({
+
+        if (categories.length > 12) {
+            return new NextResponse('Maximum 12 categories allowed', { status: 400 });
+        }
+
+        const now = new Date();
+        const targetMonth = typeof month === 'number' ? month : (now.getMonth() + 1);
+        const targetYear = typeof year === 'number' ? year : now.getFullYear();
+
+        await prisma.$transaction(async (tx) => {
+            const categoryNames = categories
+                .map((c: any) => c.name?.trim())
+                .filter((n: string) => !!n);
+
+            // 1. Delete categories no longer present in the updated list
+            await tx.budget_cat_allocations.deleteMany({
                 where: {
                     user_id: userId,
-                    name: cat.name,
+                    month: targetMonth,
+                    year: targetYear,
+                    name: {
+                        notIn: categoryNames
+                    }
+                }
+            });
 
-                },
-                data: { budget: cat.budget },
-            })
-        );
+            // 2. Upsert the updated categories list
+            for (const cat of categories) {
+                const nameTrimmed = cat.name?.trim();
+                if (!nameTrimmed) continue;
 
-        await Promise.all(updatePromises);
+                const existing = await tx.budget_cat_allocations.findFirst({
+                    where: {
+                        user_id: userId,
+                        name: nameTrimmed,
+                        month: targetMonth,
+                        year: targetYear
+                    }
+                });
+
+                if (existing) {
+                    await tx.budget_cat_allocations.update({
+                        where: { id: existing.id },
+                        data: {
+                            budget: parseFloat(cat.budget),
+                            color: cat.color || existing.color || '#6366F1'
+                        }
+                    });
+                } else {
+                    await tx.budget_cat_allocations.create({
+                        data: {
+                            user_id: userId,
+                            name: nameTrimmed,
+                            budget: parseFloat(cat.budget),
+                            color: cat.color || '#6366F1',
+                            month: targetMonth,
+                            year: targetYear
+                        }
+                    });
+                }
+            }
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {
@@ -45,3 +95,4 @@ export async function POST(req: NextRequest) {
         return new NextResponse('Failed to update budgets', { status: 500 });
     }
 }
+
