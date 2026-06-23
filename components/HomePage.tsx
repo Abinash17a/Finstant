@@ -3,11 +3,10 @@ import type React from "react"
 import { Suspense, useEffect, useState } from "react"
 import { Wallet, TrendingUp, Target, DollarSign, PlusCircle, Calendar } from "lucide-react"
 import SalaryBudgetCharts from "./salary-budget-charts"
-// import { getDashboardData } from "./actions"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/chartscomponent/chatselements'
 import Link from "next/link"
 import { formatWord, generateLastMonthSummary, getMonthlySummaryData, getUserFromauthToken } from "../lib/utils"
-import { Playwrite_BE_VLG } from "next/font/google"
+
 const Button = ({
   children,
   className = "",
@@ -22,8 +21,8 @@ const Button = ({
   const baseClasses =
     "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
   const variantClasses = {
-    default: "bg-slate-900 text-white hover:bg-slate-800 focus:ring-slate-500",
-    outline: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus:ring-slate-500",
+    default: "bg-brand text-white hover:bg-brand-hover focus:ring-brand",
+    outline: "border border-border bg-surface text-ink hover:bg-canvas focus:ring-muted",
   }
 
   return (
@@ -43,8 +42,8 @@ const Badge = ({
   variant?: "secondary" | "destructive"
 }) => {
   const variantClasses = {
-    secondary: "bg-slate-100 text-slate-800",
-    destructive: "bg-red-100 text-red-800",
+    secondary: "bg-canvas text-muted",
+    destructive: "bg-expense/10 text-expense",
   }
 
   return (
@@ -58,36 +57,40 @@ const Badge = ({
 
 const Progress = ({
   value,
+  color,
   className = "",
 }: {
   value: number
+  color?: string
   className?: string
 }) => (
-  <div className={`w-full bg-slate-200 rounded-full overflow-hidden ${className}`}>
+  <div className={`w-full bg-border rounded-full overflow-hidden ${className}`}>
     <div
-      className="bg-slate-900 h-full rounded-full transition-all duration-300 ease-out"
-      style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+      className="h-full rounded-full transition-all duration-300 ease-out"
+      style={{
+        width: `${Math.min(100, Math.max(0, value))}%`,
+        backgroundColor: color || "var(--color-brand)",
+      }}
     />
   </div>
 )
 
 const PRESET_COLORS = [
-  "#6366F1", // Indigo
-  "#10B981", // Emerald
-  "#3B82F6", // Blue
-  "#A855F7", // Purple
-  "#F97316", // Orange
-  "#EC4899", // Pink
-  "#EF4444", // Red
-  "#F59E0B", // Amber
-  "#06B6D4", // Cyan
-  "#14B8A6", // Teal
-  "#8B5CF6", // Violet
-  "#64748B"  // Slate
-];
+  "#0F6657", // brand teal
+  "#E8A33D", // accent gold
+  "#1B8A5A", // income green
+  "#D6435B", // expense red
+  "#4C8FB8", // transport blue
+  "#8C7AE0", // entertainment violet
+  "#E07856", // food coral
+  "#2FA39A", // bills teal
+  "#D1638E", // healthcare rose
+  "#D88A1F", // warning amber
+  "#8A94A3", // muted slate
+  "#6366F1", // indigo (extra)
+]
 
 export default function DashboardPage() {
-
   const today = new Date();
 
   const [data, setData] = useState<any>([{}]);
@@ -108,9 +111,7 @@ export default function DashboardPage() {
       const token = localStorage.getItem("token");
       if (!token) return;
       const res = await fetch("/api/profile", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const profileData = await res.json();
@@ -122,19 +123,11 @@ export default function DashboardPage() {
   };
 
   const getbudgetcategories = async () => {
-    console.log('🔍 getbudgetcategories called with:', { curmonth, curyear });
-
     const token = localStorage.getItem('token');
     const user_id = await getUserFromauthToken(token ?? '');
 
-    console.log('👤 User ID:', user_id);
-    console.log('📅 Fetching budget for:', curmonth, curyear);
-
     const res = await fetch(`/api/budget?userId=${user_id}&month=${curmonth}&year=${curyear}`);
     const budgetCategories = await res.json();
-
-    console.log('📊 Raw budget API response:', budgetCategories);
-    console.log('📊 Response status:', res.status);
 
     const parsed = budgetCategories.map((item: any) => ({
       ...item,
@@ -142,7 +135,6 @@ export default function DashboardPage() {
       spent: Number(item.spent)
     }));
 
-    console.log('✅ Parsed categories:', parsed);
     setCategories(parsed);
   };
 
@@ -155,20 +147,14 @@ export default function DashboardPage() {
       });
 
       const monthdata = await res.json();
-      console.log("monthdata in generateSummary", monthdata)
       setmonthlyData(monthdata);
       if (!res.ok) {
-        console.error('Failed to generate summary:', data.error);
-      } else {
-        console.log('Summary data:', data);
+        console.error('Failed to generate summary:', monthdata?.error);
       }
     } catch (error) {
       console.error('Error calling summary API:', error);
     }
   };
-
-
-
 
   const fetchDashboardData = async () => {
     try {
@@ -183,15 +169,12 @@ export default function DashboardPage() {
       const limit = 5;
       const res = await fetch(`/api/dashboard?userId=${user_id}&limit=${limit}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
 
       const result = await res.json();
 
       if (res.ok) {
-        console.log('Dashboard data:', result);
         setData(result);
       } else {
         alert(`Error: ${result.error}`);
@@ -209,31 +192,22 @@ export default function DashboardPage() {
     const res = await fetch('/api/huggingface', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt: prompt,
-      })
+      body: JSON.stringify({ prompt }),
     });
 
-
     const data = await res.json();
-    console.log("data in getAdvice", data)
     setAdvice(data.advice);
   };
 
   useEffect(() => {
     fetchDashboardData();
-    // getAdvice();
     getbudgetcategories();
     generateSummary();
     fetchProfileLimit();
-
   }, []);
 
   useEffect(() => {
-    // getAdvice();
     generateSummary();
-    console.log("Updated dashboard data:", data);
-    console.log("total budget", data.totalBudget);
   }, [data]);
 
   const saveChanges = async () => {
@@ -260,8 +234,6 @@ export default function DashboardPage() {
         body: JSON.stringify({ categories }),
       });
 
-      console.log("categories in saveChanges", categories[0].budget);
-
       if (!res.ok) {
         alert('Failed to save changes');
       } else {
@@ -274,15 +246,12 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    console.log(advice, "advice in useEffect")
     if (
       advice &&
       advice !== 'No advice available.' &&
       advice !== 'No tip found.'
     ) {
       setShowAdvice(false);
-
-      // Auto-hide after 10 seconds
       const timer = setTimeout(() => setShowAdvice(false), 10000);
       return () => clearTimeout(timer);
     }
@@ -294,23 +263,21 @@ export default function DashboardPage() {
     setCategories(updated);
   };
 
-  console.log("Categories in dashboard", data, monthlyData);
-
-  if (loading) return <p>Loading...</p>;
-  if (!data) return <p>No data available</p>;
+  if (loading) return <p className="p-6 text-muted">Loading...</p>;
+  if (!data) return <p className="p-6 text-muted">No data available</p>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+    <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Financial Dashboard</h1>
-            <p className="text-slate-600 mt-1">Track your salary, budget, and financial goals</p>
+            <h1 className="text-3xl font-bold text-ink">Financial Dashboard</h1>
+            <p className="text-muted mt-1">Track your salary, budget, and financial goals</p>
           </div>
           <div className="flex gap-3">
             <Link href="/expenses">
-              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" href="/expenses">
+              <Button className="bg-income hover:brightness-95 text-white">
                 <PlusCircle className="w-4 h-4 mr-2" />
                 Add Transaction
               </Button>
@@ -324,7 +291,7 @@ export default function DashboardPage() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-0">
+          <Card className="bg-income text-white border-0">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium opacity-90">Monthly Salary</CardTitle>
@@ -337,7 +304,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
+          <Card className="bg-brand text-white border-0">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium opacity-90">Total Budget</CardTitle>
@@ -350,7 +317,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
+          <Card className="bg-expense text-white border-0">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium opacity-90">Spent This Month</CardTitle>
@@ -365,7 +332,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0">
+          <Card className="bg-accent text-white border-0">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium opacity-90">Remaining</CardTitle>
@@ -379,18 +346,15 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* commented for fix */}
-
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Suspense fallback={<div className="h-96 bg-white rounded-lg animate-pulse" />}>
+          <Suspense fallback={<div className="h-96 bg-surface rounded-lg animate-pulse" />}>
             <SalaryBudgetCharts data={{ ...data, monthlyData }} />
           </Suspense>
         </div>
 
         {/* Budget Categories & Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Budget Categories */}
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="text-xl">Budget Categories</CardTitle>
@@ -399,30 +363,24 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {(() => {
-                console.log('🔍 Categories data in HomePage:', categories);
-                console.log('📊 Categories length:', categories?.length);
-                return null;
-              })()}
               {categories?.map((category: any, index: number) => (
                 <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: category.color || '#6366F1' }}></div>
-                      <span className="font-medium">{category.name}</span>
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: category.color || '#0F6657' }}></div>
+                      <span className="font-medium text-ink">{category.name}</span>
                       <Badge variant={category.spent > category.budget ? "destructive" : "secondary"}>
                         {category.spent > category.budget ? "Over Budget" : "On Track"}
                       </Badge>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold">₹{category.spent.toLocaleString()}</div>
-                      <div className="text-sm text-slate-500">of ₹{category.budget.toLocaleString()}</div>
+                      <div className="font-semibold text-ink">₹{category.spent.toLocaleString()}</div>
+                      <div className="text-sm text-muted">of ₹{category.budget.toLocaleString()}</div>
                     </div>
                   </div>
 
-                  {/* Budget Slider */}
                   <div>
-                    <label className="text-sm text-slate-600">Adjust Budget</label>
+                    <label className="text-sm text-muted">Adjust Budget</label>
                     <input
                       type="range"
                       min={category.spent}
@@ -430,13 +388,16 @@ export default function DashboardPage() {
                       value={category.budget}
                       disabled={!isEditing}
                       onChange={(e) => handleBudgetChange(index, Number(e.target.value))}
-                      className="w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full disabled:opacity-50 disabled:cursor-not-allowed accent-brand"
                     />
-                    <Progress value={(category.spent / category.budget) * 100} className="h-2 mt-1" />
+                    <Progress
+                      value={(category.spent / category.budget) * 100}
+                      color={category.color || '#0F6657'}
+                      className="h-2 mt-1"
+                    />
                   </div>
                 </div>
               ))}
-
 
               <div className="flex flex-wrap gap-3">
                 <Button
@@ -455,7 +416,7 @@ export default function DashboardPage() {
                     setModalCategories(categories.map(c => ({
                       name: c.name,
                       budget: Number(c.budget),
-                      color: c.color || '#6366F1'
+                      color: c.color || '#0F6657'
                     })));
                     setIsManageModalOpen(true);
                   }}
@@ -463,10 +424,8 @@ export default function DashboardPage() {
                   Manage Categories
                 </Button>
               </div>
-
             </CardContent>
           </Card>
-
 
           {/* Financial Goals */}
           <Card>
@@ -478,11 +437,11 @@ export default function DashboardPage() {
               {data.financialGoals.map((goal: any, index: number) => (
                 <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium text-sm">{goal.name}</span>
-                    <span className="text-sm text-slate-600">{((goal.current / goal.target) * 100).toFixed(0)}%</span>
+                    <span className="font-medium text-sm text-ink">{goal.name}</span>
+                    <span className="text-sm text-muted">{((goal.current / goal.target) * 100).toFixed(0)}%</span>
                   </div>
-                  <Progress value={(goal.current / goal.target) * 100} className="h-2" />
-                  <div className="flex justify-between text-xs text-slate-500">
+                  <Progress value={(goal.current / goal.target) * 100} color="#E8A33D" className="h-2" />
+                  <div className="flex justify-between text-xs text-muted">
                     <span>₹{goal.current.toLocaleString()}</span>
                     <span>₹{goal.target.toLocaleString()}</span>
                   </div>
@@ -496,10 +455,8 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-
-
         {/* Recent Transactions */}
-        /* <Card>
+        <Card>
           <CardHeader>
             <CardTitle className="text-xl">Recent Transactions</CardTitle>
             <CardDescription>Your latest financial activity</CardDescription>
@@ -507,7 +464,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-3">
               {data.recentTransactions.map((transaction: any, index: number) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div key={index} className="flex items-center justify-between p-3 bg-canvas rounded-lg">
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-10 h-10 rounded-full ${transaction.categoryColor} flex items-center justify-center text-white font-semibold text-sm`}
@@ -515,14 +472,14 @@ export default function DashboardPage() {
                       {transaction.category.charAt(0)}
                     </div>
                     <div>
-                      <div className="font-medium">{transaction.description}</div>
-                      <div className="text-sm text-slate-500">
+                      <div className="font-medium text-ink">{transaction.description}</div>
+                      <div className="text-sm text-muted">
                         {formatWord(transaction.category)} • {transaction.date}
                       </div>
                     </div>
                   </div>
                   <div
-                    className={`font-semibold ${transaction.type === "income" ? "text-emerald-600" : "text-red-600"}`}
+                    className={`font-semibold ${transaction.type === "income" ? "text-income" : "text-expense"}`}
                   >
                     {transaction.type === "income" ? "+" : "-"}₹{transaction.amount.toLocaleString()}
                   </div>
@@ -532,9 +489,10 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
       {/* Floating Financial Tip */}
       {showAdvice && (
-        <div className="fixed bottom-6 left-6 z-50 max-w-sm p-4 rounded-2xl shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-white animate-fadeIn">
+        <div className="fixed bottom-6 left-6 z-50 max-w-sm p-4 rounded-2xl shadow-lg bg-brand text-white animate-fadeIn">
           <h4 className="text-sm font-semibold mb-1 uppercase tracking-wider">💡 Financial Tip</h4>
           <p className="text-sm leading-relaxed">{advice}</p>
         </div>
@@ -542,53 +500,49 @@ export default function DashboardPage() {
 
       {/* Manage Categories Modal */}
       {isManageModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden transition-all transform scale-100 duration-300">
-            {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm transition-all duration-300">
+          <div className="bg-surface rounded-2xl shadow-2xl border border-border max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden transition-all transform scale-100 duration-300">
+            <div className="p-6 border-b border-border flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Manage Budget Categories</h3>
-                <p className="text-sm text-slate-500 mt-1">
+                <h3 className="text-xl font-bold text-ink">Manage Budget Categories</h3>
+                <p className="text-sm text-muted mt-1">
                   Configure your categories and allocated budgets (Max 12).
                 </p>
               </div>
               <button
                 onClick={() => setIsManageModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors text-lg font-bold"
+                className="text-muted hover:text-ink hover:bg-canvas p-2 rounded-full transition-colors text-lg font-bold"
               >
                 &times;
               </button>
             </div>
 
-            {/* Modal Content - Scrollable */}
             <div className="p-6 overflow-y-auto space-y-4 flex-1">
-              <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl text-sm text-slate-700">
+              <div className="flex justify-between items-center bg-canvas p-4 rounded-xl text-sm text-ink">
                 <div>
-                  <span className="font-semibold text-slate-900">Total Allocated:</span>{" "}
+                  <span className="font-semibold text-ink">Total Allocated:</span>{" "}
                   ₹{modalCategories.reduce((sum, c) => sum + (Number(c.budget) || 0), 0).toLocaleString()}
                 </div>
                 <div>
-                  <span className="font-semibold text-slate-900">Monthly Limit:</span>{" "}
+                  <span className="font-semibold text-ink">Monthly Limit:</span>{" "}
                   ₹{monthlyLimit.toLocaleString()}
                 </div>
               </div>
 
-              {/* Form entries */}
               <div className="space-y-3">
                 {modalCategories.map((cat, idx) => (
-                  <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 bg-slate-50/50 rounded-xl border border-slate-100">
+                  <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 bg-canvas/60 rounded-xl border border-border">
                     <div className="flex-1 flex gap-3 items-center">
-                      {/* Color Indicator Selector */}
                       <div className="relative group">
                         <button
                           type="button"
-                          className="w-8 h-8 rounded-full border border-white shadow-sm flex items-center justify-center text-white text-xs font-semibold cursor-pointer hover:scale-105 active:scale-95 transition-all"
-                          style={{ backgroundColor: cat.color || '#6366F1' }}
+                          className="w-8 h-8 rounded-full border border-surface shadow-sm flex items-center justify-center text-white text-xs font-semibold cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                          style={{ backgroundColor: cat.color || '#0F6657' }}
                           title="Click to select color"
                         >
                           🎨
                         </button>
-                        <div className="hidden group-hover:flex absolute left-0 top-9 bg-white border border-slate-200 shadow-xl rounded-xl p-2.5 z-[60] grid grid-cols-4 gap-2 w-44">
+                        <div className="hidden group-hover:flex absolute left-0 top-9 bg-surface border border-border shadow-xl rounded-xl p-2.5 z-[60] grid grid-cols-4 gap-2 w-44">
                           {PRESET_COLORS.map((color) => (
                             <button
                               key={color}
@@ -605,12 +559,11 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      {/* Name input */}
                       <input
                         type="text"
                         placeholder="Category Name (e.g. FOOD_DINING)"
                         value={cat.name || ""}
-                        className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="flex-1 px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/30 text-ink"
                         onChange={(e) => {
                           const updated = [...modalCategories];
                           updated[idx].name = e.target.value;
@@ -620,14 +573,13 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      {/* Budget Input */}
                       <div className="relative flex-1 sm:w-36">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">₹</span>
                         <input
                           type="number"
                           placeholder="0"
                           value={cat.budget === 0 ? "" : cat.budget}
-                          className="w-full pl-7 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                          className="w-full pl-7 pr-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/30 text-ink"
                           onChange={(e) => {
                             const updated = [...modalCategories];
                             updated[idx].budget = Number(e.target.value);
@@ -636,14 +588,13 @@ export default function DashboardPage() {
                         />
                       </div>
 
-                      {/* Trash Button */}
                       <button
                         type="button"
                         onClick={() => {
                           const updated = modalCategories.filter((_, i) => i !== idx);
                           setModalCategories(updated);
                         }}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                        className="text-expense hover:bg-expense/10 p-2 rounded-lg transition-colors"
                       >
                         🗑️
                       </button>
@@ -652,7 +603,6 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              {/* Add category button */}
               {modalCategories.length < 12 ? (
                 <button
                   type="button"
@@ -663,30 +613,28 @@ export default function DashboardPage() {
                       { name: "", budget: 0, color: nextColor }
                     ]);
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 hover:border-slate-400 text-slate-600 hover:text-slate-800 rounded-xl transition-all font-medium text-sm"
+                  className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-border hover:border-muted text-muted hover:text-ink rounded-xl transition-all font-medium text-sm"
                 >
                   ➕ Add Category
                 </button>
               ) : (
-                <p className="text-center text-xs text-amber-600 font-medium">
+                <p className="text-center text-xs text-warning font-medium">
                   Maximum limit of 12 categories reached.
                 </p>
               )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+            <div className="p-6 border-t border-border bg-canvas/60 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setIsManageModalOpen(false)}
-                className="px-4 py-2 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors text-sm"
+                className="px-4 py-2 border border-border text-ink font-medium rounded-lg hover:bg-canvas transition-colors text-sm"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={async () => {
-                  // Validations
                   const total = modalCategories.reduce((sum, c) => sum + (Number(c.budget) || 0), 0);
                   if (total > monthlyLimit) {
                     alert(`Total allocated budget (₹${total.toLocaleString()}) exceeds your monthly limit (₹${monthlyLimit.toLocaleString()})! Please adjust your allocations or increase your monthly limit in your Profile.`);
@@ -712,7 +660,6 @@ export default function DashboardPage() {
                     }
                   }
 
-                  // Save
                   const token = localStorage.getItem('token');
                   if (!token) {
                     alert('User not authenticated');
@@ -738,7 +685,6 @@ export default function DashboardPage() {
                     } else {
                       alert('Categories updated successfully!');
                       setIsManageModalOpen(false);
-                      // Refresh data
                       getbudgetcategories();
                       fetchDashboardData();
                     }
@@ -747,7 +693,7 @@ export default function DashboardPage() {
                     alert('An error occurred while saving.');
                   }
                 }}
-                className="px-4 py-2 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors text-sm shadow-sm"
+                className="px-4 py-2 bg-brand text-white font-medium rounded-lg hover:bg-brand-hover transition-colors text-sm shadow-sm"
               >
                 Save Categories
               </button>

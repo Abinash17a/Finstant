@@ -16,13 +16,13 @@ import {
 import { cn } from "@/lib/utils"
 
 const navItems = [
-  { href: "/dashboard", icon: <Home />, label: "Dashboard" },
-  { href: "/expenses", icon: <Edit3 />, label: "Expense" },
-  { href: "/insights", icon: <FileText />, label: "Insights" },
-  { href: "/messages", icon: <MessageCircle />, label: "Notification" },
-  { href: "/apps", icon: <Grid />, label: "Appearance" },
-  { href: "/profile", icon: <User />, label: "Users" },
-  { href: "/settings", icon: <Settings />, label: "Settings" }
+  { href: "/dashboard", icon: <Home size={18} />, label: "Dashboard" },
+  { href: "/expenses", icon: <Edit3 size={18} />, label: "Expense" },
+  { href: "/insights", icon: <FileText size={18} />, label: "Insights" },
+  { href: "/messages", icon: <MessageCircle size={18} />, label: "Notification" },
+  { href: "/apps", icon: <Grid size={18} />, label: "Appearance" },
+  { href: "/profile", icon: <User size={18} />, label: "Users" },
+  { href: "/settings", icon: <Settings size={18} />, label: "Settings" }
 ]
 
 export function Sidebar() {
@@ -31,35 +31,50 @@ export function Sidebar() {
 
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 1559) // Tailwind's md breakpoint 768
+      setIsMobile(window.innerWidth < 768)
     }
 
     checkScreenSize()
     window.addEventListener("resize", checkScreenSize)
+
     return () => window.removeEventListener("resize", checkScreenSize)
   }, [])
 
   const isCollapsed = isMobile
 
   return (
-    <div
+    <aside
       className={cn(
-        "h-full border-r border-purple-500 bg-white flex flex-col transition-all duration-300 fixed z-50 md:relative",
-        isCollapsed ? "w-16 items-center" : "w-56 px-4"
+        "h-screen border-r bg-[var(--color-surface)] border-[var(--color-border)] flex flex-col transition-all duration-300 fixed z-50 md:relative shadow-sm",
+        isCollapsed ? "w-16 items-center px-2" : "w-64 px-4"
       )}
     >
       {/* Logo */}
-      <Link href="/" className="mb-8 mt-4 flex items-center space-x-2">
-        <div className="w-10 h-10 rounded-md bg-blue-400 flex items-center justify-center text-white">
-          <Grid className="w-6 h-6" />
+      <Link
+        href="/"
+        className={cn(
+          "flex items-center py-5",
+          isCollapsed ? "justify-center" : "gap-3"
+        )}
+      >
+        <div className="h-10 w-10 rounded-xl bg-[var(--color-brand)] flex items-center justify-center shadow-sm">
+          <Grid className="h-5 w-5 text-white" />
         </div>
+
         {!isCollapsed && (
-          <span className="text-xl font-bold text-gray-700">Finstant</span>
+          <div>
+            <h1 className="text-lg font-bold text-[var(--color-ink)]">
+              Finstant
+            </h1>
+            <p className="text-xs text-[var(--color-muted)]">
+              Finance Tracker
+            </p>
+          </div>
         )}
       </Link>
 
-      {/* Navigation Items */}
-      <nav className="flex flex-col space-y-2 flex-1">
+      {/* Navigation */}
+      <nav className="flex flex-col gap-1 mt-4 flex-1">
         {navItems.map((item) => (
           <NavItem
             key={item.href}
@@ -74,16 +89,20 @@ export function Sidebar() {
 
       {/* Logout */}
       <button
+        onClick={() => console.log("Logout")}
         className={cn(
-          "flex items-center space-x-2 text-white bg-slate-500 hover:bg-slate-600 rounded-md mt-4 mb-6",
-          isCollapsed ? "w-10 h-10 justify-center" : "px-4 py-2"
+          "flex items-center rounded-xl mb-5 transition-all duration-200 bg-[var(--color-expense)] hover:opacity-90 text-white shadow-sm",
+          isCollapsed
+            ? "h-10 w-10 justify-center"
+            : "gap-2 px-4 py-3"
         )}
-        onClick={() => console.log("Logout clicked")}
       >
-        <LogOut className="w-5 h-5" />
-        {!isCollapsed && <span>Logout</span>}
+        <LogOut size={18} />
+        {!isCollapsed && (
+          <span className="font-medium text-sm">Logout</span>
+        )}
       </button>
-    </div>
+    </aside>
   )
 }
 
@@ -95,18 +114,36 @@ interface NavItemProps {
   isCollapsed: boolean
 }
 
-function NavItem({ href, icon, label, isActive, isCollapsed }: NavItemProps) {
+function NavItem({
+  href,
+  icon,
+  label,
+  isActive,
+  isCollapsed
+}: NavItemProps) {
   return (
     <Link
       href={href}
       className={cn(
-        "flex items-center space-x-3 px-3 py-2 rounded-md transition-all",
-        isActive ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-100",
-        isCollapsed ? "justify-center" : ""
+        "relative flex items-center rounded-xl px-3 py-3 transition-all duration-200 group",
+        isActive
+          ? "bg-[var(--color-brand)] text-white shadow-sm"
+          : "text-[var(--color-muted)] hover:bg-[var(--color-canvas)] hover:text-[var(--color-brand)]",
+        isCollapsed ? "justify-center" : "gap-3"
       )}
     >
-      <span className="w-5 h-5">{icon}</span>
-      {!isCollapsed && <span className="text-sm">{label}</span>}
+      {/* Active Indicator */}
+      {isActive && (
+        <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-accent)]" />
+      )}
+
+      <span>{icon}</span>
+
+      {!isCollapsed && (
+        <span className="text-sm font-medium">
+          {label}
+        </span>
+      )}
     </Link>
   )
 }

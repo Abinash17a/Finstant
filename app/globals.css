@@ -1,6 +1,36 @@
 @import "tailwindcss";
 
+@theme {
+  /* Core */
+  --color-ink: #1A1D23;
+  --color-surface: #FFFFFF;
+  --color-canvas: #F4F5F7;
+  --color-muted: #8A94A3;
+  --color-border: #E4E7EB;
+
+  /* Brand */
+  --color-brand: #0F6657;
+  --color-brand-hover: #0C5547;
+  --color-accent: #E8A33D;
+  --color-accent-hover: #D6922E;
+
+  /* Semantic */
+  --color-income: #1B8A5A;
+  --color-expense: #D6435B;
+  --color-warning: #D88A1F;
+}
+
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #f9f9f9;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.25s ease-out;
 }

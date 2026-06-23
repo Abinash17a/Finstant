@@ -4,8 +4,6 @@ import type React from "react"
 import { useEffect, useRef } from "react"
 import { Chart, registerables } from "chart.js"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/chartscomponent/chatselements'
-import { CloudCog } from "lucide-react"
-import DashboardPage from "./HomePage"
 
 Chart.register(...registerables)
 
@@ -45,6 +43,11 @@ interface DashboardData {
   }>
 }
 
+// Palette tokens (kept as raw RGB here since Chart.js can't read CSS variables directly)
+const COLOR_INCOME = "27, 138, 90"   // #1B8A5A
+const COLOR_BRAND = "15, 102, 87"    // #0F6657
+const COLOR_EXPENSE = "214, 67, 91"  // #D6435B
+
 export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
   const salaryChartRef = useRef<HTMLCanvasElement>(null)
   const categoryChartRef = useRef<HTMLCanvasElement>(null)
@@ -52,14 +55,12 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
   const salaryChartInstance = useRef<Chart | null>(null)
   const categoryChartInstance = useRef<Chart | null>(null)
   const trendChartInstance = useRef<Chart | null>(null)
-  console.log("Dashboard Data that we got ----", data)
 
   useEffect(() => {
     if (salaryChartRef.current) {
       if (salaryChartInstance.current) {
         salaryChartInstance.current.destroy()
       }
-      console.log("categoryChartRef", categoryChartRef.current)
       const ctx = salaryChartRef.current.getContext("2d")
       if (ctx) {
         salaryChartInstance.current = new Chart(ctx, {
@@ -70,24 +71,24 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
               {
                 label: "Salary",
                 data: [data.monthlySalary],
-                backgroundColor: "rgba(16, 185, 129, 0.8)",
-                borderColor: "rgba(16, 185, 129, 1)",
+                backgroundColor: `rgba(${COLOR_INCOME}, 0.85)`,
+                borderColor: `rgba(${COLOR_INCOME}, 1)`,
                 borderWidth: 2,
                 borderRadius: 8,
               },
               {
                 label: "Budget",
                 data: [data.totalBudget],
-                backgroundColor: "rgba(59, 130, 246, 0.8)",
-                borderColor: "rgba(59, 130, 246, 1)",
+                backgroundColor: `rgba(${COLOR_BRAND}, 0.85)`,
+                borderColor: `rgba(${COLOR_BRAND}, 1)`,
                 borderWidth: 2,
                 borderRadius: 8,
               },
               {
                 label: "Spent",
                 data: [data.totalSpent],
-                backgroundColor: "rgba(168, 85, 247, 0.8)",
-                borderColor: "rgba(168, 85, 247, 1)",
+                backgroundColor: `rgba(${COLOR_EXPENSE}, 0.85)`,
+                borderColor: `rgba(${COLOR_EXPENSE}, 1)`,
                 borderWidth: 2,
                 borderRadius: 8,
               },
@@ -97,12 +98,8 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: {
-                position: "top",
-              },
-              title: {
-                display: false,
-              },
+              legend: { position: "top" },
+              title: { display: false },
             },
             scales: {
               y: {
@@ -117,7 +114,8 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
       }
     }
 
-    // Category Spending Pie Chart
+    // Category Spending Donut — colors come from each category's DB record (data.categorySpending[].color),
+    // left untouched here since that's the per-category palette you said you'll update separately.
     if (categoryChartRef.current) {
       if (categoryChartInstance.current) {
         categoryChartInstance.current.destroy()
@@ -142,9 +140,7 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: {
-                position: "bottom",
-              },
+              legend: { position: "bottom" },
               tooltip: {
                 callbacks: {
                   label: (context) => context.label + ": ₹" + context.parsed.toLocaleString(),
@@ -172,8 +168,8 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
               {
                 label: "Salary",
                 data: data.monthlyData.map((item) => item.salary),
-                borderColor: "rgba(16, 185, 129, 1)",
-                backgroundColor: "rgba(16, 185, 129, 0.1)",
+                borderColor: `rgba(${COLOR_INCOME}, 1)`,
+                backgroundColor: `rgba(${COLOR_INCOME}, 0.1)`,
                 borderWidth: 3,
                 fill: true,
                 tension: 0.4,
@@ -181,8 +177,8 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
               {
                 label: "Budget",
                 data: data.monthlyData.map((item) => item.budget),
-                borderColor: "rgba(59, 130, 246, 1)",
-                backgroundColor: "rgba(59, 130, 246, 0.1)",
+                borderColor: `rgba(${COLOR_BRAND}, 1)`,
+                backgroundColor: `rgba(${COLOR_BRAND}, 0.1)`,
                 borderWidth: 3,
                 fill: true,
                 tension: 0.4,
@@ -190,8 +186,8 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
               {
                 label: "Spent",
                 data: data.monthlyData.map((item) => item.spent),
-                borderColor: "rgba(168, 85, 247, 1)",
-                backgroundColor: "rgba(168, 85, 247, 0.1)",
+                borderColor: `rgba(${COLOR_EXPENSE}, 1)`,
+                backgroundColor: `rgba(${COLOR_EXPENSE}, 0.1)`,
                 borderWidth: 3,
                 fill: true,
                 tension: 0.4,
@@ -202,9 +198,7 @@ export default function SalaryBudgetCharts({ data }: { data: DashboardData }) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: {
-                position: "top",
-              },
+              legend: { position: "top" },
             },
             scales: {
               y: {
