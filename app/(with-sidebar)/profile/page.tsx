@@ -1,39 +1,10 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { Camera, Edit3, Mail, Phone, MapPin, Building2, CreditCard, Calendar, User, Settings } from "lucide-react"
+import { Camera, Edit3, Mail, Phone, MapPin, CreditCard, Calendar, User } from "lucide-react"
 import { getUserFromauthToken } from "@/lib/utils"
 import { UserProfile, EditedProfile } from "../../types/user";
 
-// interface UserProfile {
-//   first_name?: string
-//   last_name?: string
-//   email?: string
-//   avatar_url?: string
-//   position?: string
-//   base_salary?: string
-//   monthly_budget?: string
-//   address?: string
-//   zip_code?: string
-//   country?: string
-//   created_at?: string
-//   department?: string
-//   phone_number?: string
-// }
-
-// interface EditedProfile {
-//   first_name?: string
-//   last_name?: string
-//   avatar_url?: string
-//   position?: string
-//   base_salary?: string
-//   monthly_budget?: string
-//   address?: string
-//   zip_code?: string
-//   country?: string
-//   department?: string
-//   phone_number?: string
-// }
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -44,7 +15,6 @@ export default function ProfilePage() {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  // import boy from "../../../public/assets/boyone.png"
 
   const avatarOptions = [
     { name: 'Boy One', url: '/assets/boyone.png' },
@@ -55,14 +25,11 @@ export default function ProfilePage() {
     { name: 'Woman Two', url: '/assets/womantwo.png' },
   ];
 
-
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem("token")
       const res = await fetch("/api/profile", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) {
         const data = await res.json()
@@ -79,22 +46,28 @@ export default function ProfilePage() {
     fetchProfile()
   }, [])
 
+  // Seed edit form with current profile so unedited fields aren't lost on save
+  const startEditing = () => {
+    setEditedProfile(profile ? { ...profile } : null)
+    setEditing(true)
+  }
+
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     const reader = new FileReader()
     reader.onloadend = () => {
-      setPreviewUrl(reader.result as string) // Just for preview
+      setPreviewUrl(reader.result as string)
     }
     reader.readAsDataURL(file)
 
-    // Save actual file to FormData for upload later
     setEditedProfile(prev => ({
       ...prev,
       avatarFile: file,
     }))
   }
+
   const handleAvatarSelect = (url: string) => {
     setEditedProfile(prev => ({
       ...prev,
@@ -102,17 +75,15 @@ export default function ProfilePage() {
     }));
     setShowAvatarModal(false);
   };
+
   const handleUserDataUpdate = async () => {
     try {
-      console.log("Edited profile---------------data-----", editedProfile);
-
       const token = localStorage.getItem("token");
       if (!token) {
         throw new Error("No auth token found");
       }
 
       const id = await getUserFromauthToken(token);
-      console.log(id, "id of user to be updated");
 
       const response = await fetch(`/api/users`, {
         method: 'PUT',
@@ -130,28 +101,24 @@ export default function ProfilePage() {
       }
 
       const data = await response.json();
-      console.log('User data updated successfully', data);
       setEditing(false);
       fetchProfile()
 
       return data;
     } catch (error: any) {
       console.error("Error updating user:", error.message || error);
-      // Optionally show user-facing error message here
     }
   };
 
-
-
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-20 h-20 border-4 border-indigo-200 rounded-full animate-spin"></div>
-            <div className="absolute top-0 left-0 w-20 h-20 border-4 border-t-indigo-600 border-r-indigo-600 rounded-full animate-spin"></div>
+            <div className="w-20 h-20 border-4 border-border rounded-full animate-spin"></div>
+            <div className="absolute top-0 left-0 w-20 h-20 border-4 border-t-brand border-r-brand rounded-full animate-spin"></div>
           </div>
-          <p className="mt-6 text-slate-600 font-medium">Loading your profile...</p>
+          <p className="mt-6 text-muted font-medium">Loading your profile...</p>
         </div>
       </div>
     )
@@ -159,16 +126,16 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center p-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-red-600" />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center p-8 bg-surface rounded-2xl shadow-xl border border-border">
+          <div className="w-16 h-16 bg-expense/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="w-8 h-8 text-expense" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Profile Not Found</h2>
-          <p className="text-slate-600 mb-6">Unable to load your profile information.</p>
+          <h2 className="text-2xl font-bold text-ink mb-2">Profile Not Found</h2>
+          <p className="text-muted mb-6">Unable to load your profile information.</p>
           <button
             onClick={() => (window.location.href = "/landing")}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
+            className="px-6 py-3 bg-brand text-white rounded-xl hover:bg-brand-hover transition-all duration-200 font-medium shadow-sm hover:shadow-md"
           >
             Re Login
           </button>
@@ -184,22 +151,20 @@ export default function ProfilePage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div>
         {/* Header */}
-        <div className="bg-white/80 backdrop-blur-md border-b border-white/20 sticky top-0 z-10">
+        <div className="bg-surface/80 backdrop-blur-md border-b border-border sticky top-0 z-10">
           <div className="max-w-7xl mx-auto px-1 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
-              <h1 className="text-xl font-bold text-slate-800">Profile</h1>
-              <button className="p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
-              </button>
+              <h1 className="text-xl font-bold text-ink">Profile</h1>
             </div>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Profile Header Card */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 overflow-hidden mb-8">
-            <div className="relative h-32 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
+          <div className="bg-surface rounded-3xl shadow-sm border border-border overflow-hidden mb-8">
+            <div className="relative h-32 bg-gradient-to-r from-brand to-brand-hover">
               <div className="absolute top-4 right-4">
                 <button className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors">
                   <Edit3 className="w-4 h-4 text-white" />
@@ -213,10 +178,9 @@ export default function ProfilePage() {
                   <img
                     src={profile?.avatar_url || "/placeholder.svg?height=120&width=120"}
                     alt="Choose your Avatar"
-                    className="w-32 h-32 rounded-full object-cover bg-white border-4 border-white shadow-lg"
+                    className="w-32 h-32 rounded-full object-cover bg-surface border-4 border-surface shadow-lg"
                   />
 
-                  {/* Hidden File Input */}
                   <input
                     type="file"
                     accept="image/*"
@@ -228,7 +192,7 @@ export default function ProfilePage() {
                   {editing && (
                     <button
                       onClick={() => setShowAvatarModal(true)}
-                      className="absolute -bottom-2 -right-2 text-white bg-green-600 hover:bg-green-700 rounded-xl p-2.5 shadow-lg transition-colors"
+                      className="absolute -bottom-2 -right-2 text-white bg-brand hover:bg-brand-hover rounded-xl p-2.5 shadow-lg transition-colors"
                     >
                       <Camera className="w-4 h-4" />
                     </button>
@@ -236,12 +200,12 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="mt-4 sm:mt-0 sm:ml-6 flex-1">
-                  <h2 className="text-3xl font-bold !text-white">
+                  <h2 className="text-3xl font-bold text-white">
                     {profile.first_name} {profile.last_name}
                   </h2>
-                  <p className="text-lg text-indigo-600 font-medium mt-1">{profile.position}</p>
+                  <p className="text-lg text-white/90 font-medium mt-1">{profile.position}</p>
 
-                  <div className="flex items-center mt-3 text-sm text-slate-600">
+                  <div className="flex items-center mt-3 text-sm text-muted">
                     <Calendar className="w-4 h-4 mr-2" />
                     Member since{" "}
                     {profile.created_at
@@ -256,8 +220,8 @@ export default function ProfilePage() {
                 <div className="mt-4 sm:mt-0">
                   {!editing ? (
                     <button
-                      onClick={() => setEditing(true)}
-                      className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                      onClick={startEditing}
+                      className="px-6 py-3 bg-brand hover:bg-brand-hover text-white font-medium rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                       Edit Profile
                     </button>
@@ -265,13 +229,13 @@ export default function ProfilePage() {
                     <div className="flex space-x-4">
                       <button
                         onClick={() => handleUserDataUpdate()}
-                        className="px-6 py-3 bg-green-900 hover:bg-green-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                        className="px-6 py-3 bg-brand hover:bg-brand-hover text-white font-medium rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
                       >
                         Save
                       </button>
                       <button
                         onClick={() => setEditing(false)}
-                        className="px-6 py-3 bg-red-900 hover:bg-red-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                        className="px-6 py-3 border border-border text-ink hover:bg-canvas font-medium rounded-xl transition-all duration-200"
                       >
                         Cancel Edit
                       </button>
@@ -282,9 +246,8 @@ export default function ProfilePage() {
             </div>
           </div>
 
-
           {/* Navigation Tabs */}
-          <div className="flex space-x-1 bg-white/60 backdrop-blur-sm p-1 rounded-2xl mb-8 border border-white/20">
+          <div className="flex space-x-1 bg-canvas/60 p-1 rounded-2xl mb-8 border border-border">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
@@ -292,8 +255,8 @@ export default function ProfilePage() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex-1 flex items-center justify-center px-4 py-3 rounded-xl font-medium transition-all duration-200 ${activeTab === tab.id
-                    ? "bg-white text-indigo-600 shadow-md"
-                    : "text-slate-600 hover:text-slate-800 hover:bg-white/50"
+                    ? "bg-surface text-brand shadow-sm"
+                    : "text-muted hover:text-ink hover:bg-surface/50"
                     }`}
                 >
                   <Icon className="w-4 h-4 mr-2" />
@@ -307,23 +270,23 @@ export default function ProfilePage() {
           {activeTab === "overview" && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Personal Information */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-                <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
-                  <User className="w-5 h-5 mr-2 text-indigo-600" />
+              <div className="bg-surface rounded-2xl shadow-sm border border-border p-6">
+                <h3 className="text-xl font-bold text-ink mb-6 flex items-center">
+                  <User className="w-5 h-5 mr-2 text-brand" />
                   Personal Information
                 </h3>
                 <div className="space-y-6">
-                  <div className="flex items-center p-4 bg-slate-50/50 rounded-xl">
-                    <Mail className="w-5 h-5 text-indigo-600 mr-4" />
+                  <div className="flex items-center p-4 bg-canvas/60 rounded-xl">
+                    <Mail className="w-5 h-5 text-brand mr-4" />
                     <div className="flex-1">
-                      <p className="text-sm text-slate-500">Email Address</p>
-                      <p className="font-medium text-slate-800">{profile.email || "Not provided"}</p>
+                      <p className="text-sm text-muted">Email Address</p>
+                      <p className="font-medium text-ink">{profile.email || "Not provided"}</p>
                     </div>
                   </div>
-                  <div className="flex items-center p-4 bg-slate-50/50 rounded-xl">
-                    <Phone className="w-5 h-5 text-indigo-600 mr-4" />
+                  <div className="flex items-center p-4 bg-canvas/60 rounded-xl">
+                    <Phone className="w-5 h-5 text-brand mr-4" />
                     <div className="flex-1">
-                      <p className="text-sm text-slate-500">Phone Number</p>
+                      <p className="text-sm text-muted">Phone Number</p>
                       {editing ? (
                         <input
                           type="text"
@@ -336,51 +299,27 @@ export default function ProfilePage() {
                               phone_number: e.target.value,
                             }))
                           }
-                          className="w-fit px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 shadow-sm"
+                          className="w-fit px-4 py-2 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition-all duration-200"
                         />
                       ) : (
-                        <p className="font-medium text-slate-800">
+                        <p className="font-medium text-ink">
                           {profile.phone_number || "Not provided"}
                         </p>
                       )}
                     </div>
                   </div>
-                  {/* <div className="flex items-center p-4 bg-slate-50/50 rounded-xl">
-                  <Building2 className="w-5 h-5 text-indigo-600 mr-4" />
-                  <div className="flex-1">
-                    <p className="text-sm text-slate-500">Department</p>
-                    {editing ? (
-                      <input
-                        type="text"
-                        name="department"
-                        placeholder="Enter department"
-                        value={editedProfile?.department || ""}
-                        onChange={(e) =>
-                          setEditedProfile((prev) => ({
-                            ...prev,
-                            department: e.target.value,
-                          }))
-                        }
-                        className="w-fit px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 shadow-sm"
-                      />
-                    ) : (
-                      <p className="font-medium text-slate-800">{profile.department || "Not assigned"}</p>
-                    )}
-                  </div>
-                </div> */}
                 </div>
               </div>
 
               {/* Location Information */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-                <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
-                  <MapPin className="w-5 h-5 mr-2 text-indigo-600" />
+              <div className="bg-surface rounded-2xl shadow-sm border border-border p-6">
+                <h3 className="text-xl font-bold text-ink mb-6 flex items-center">
+                  <MapPin className="w-5 h-5 mr-2 text-brand" />
                   Location Details
                 </h3>
                 <div className="space-y-6">
-                  {/* Country */}
-                  <div className="p-4 bg-slate-50/50 rounded-xl">
-                    <p className="text-sm text-slate-500 mb-1">Country</p>
+                  <div className="p-4 bg-canvas/60 rounded-xl">
+                    <p className="text-sm text-muted mb-1">Country</p>
                     {editing ? (
                       <select
                         id="country"
@@ -389,7 +328,7 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           setEditedProfile({ ...editedProfile, country: e.target.value })
                         }
-                        className="w-fit border px-3 py-2 rounded-md"
+                        className="w-fit px-4 py-2 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
                       >
                         <option value="">Select a country</option>
                         <option value="India">India</option>
@@ -398,13 +337,12 @@ export default function ProfilePage() {
                         <option value="China">China</option>
                       </select>
                     ) : (
-                      <p className="font-medium text-slate-800">{profile.country || "Not provided"}</p>
+                      <p className="font-medium text-ink">{profile.country || "Not provided"}</p>
                     )}
                   </div>
 
-                  {/* Address */}
-                  <div className="p-4 bg-slate-50/50 rounded-xl">
-                    <p className="text-sm text-slate-500 mb-1">Address</p>
+                  <div className="p-4 bg-canvas/60 rounded-xl">
+                    <p className="text-sm text-muted mb-1">Address</p>
                     {editing ? (
                       <input
                         type="text"
@@ -417,16 +355,15 @@ export default function ProfilePage() {
                             address: e.target.value,
                           }))
                         }
-                        className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 shadow-sm"
+                        className="w-full px-4 py-2 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition-all duration-200"
                       />
                     ) : (
-                      <p className="font-medium text-slate-800">{profile.address || "Not provided"}</p>
+                      <p className="font-medium text-ink">{profile.address || "Not provided"}</p>
                     )}
                   </div>
 
-                  {/* Zip Code */}
-                  <div className="p-4 bg-slate-50/50 rounded-xl">
-                    <p className="text-sm text-slate-500 mb-1">Zip Code</p>
+                  <div className="p-4 bg-canvas/60 rounded-xl">
+                    <p className="text-sm text-muted mb-1">Zip Code</p>
                     {editing ? (
                       <input
                         type="text"
@@ -439,10 +376,10 @@ export default function ProfilePage() {
                             zip_code: e.target.value,
                           }))
                         }
-                        className="w-32 px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 shadow-sm"
+                        className="w-32 px-4 py-2 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition-all duration-200"
                       />
                     ) : (
-                      <p className="font-medium text-slate-800">{profile.zip_code || "Not provided"}</p>
+                      <p className="font-medium text-ink">{profile.zip_code || "Not provided"}</p>
                     )}
                   </div>
                 </div>
@@ -450,11 +387,10 @@ export default function ProfilePage() {
             </div>
           )}
 
-
           {activeTab === "financial" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Base Salary Card */}
-              <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg p-8 text-white">
+              <div className="bg-income rounded-2xl shadow-sm p-8 text-white">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold">Base Salary</h3>
                   <div className="p-3 bg-white/20 rounded-xl">
@@ -465,13 +401,13 @@ export default function ProfilePage() {
                 {!editing ? (
                   <>
                     <p className="text-4xl font-bold mb-2">₹{profile.base_salary || "0"}</p>
-                    <p className="text-green-100">Annual compensation</p>
+                    <p className="text-white/80">Annual compensation</p>
                   </>
                 ) : (
                   <>
                     <input
                       type="number"
-                      className="text-3xl font-bold text-black rounded-xl p-2 w-full"
+                      className="text-3xl font-bold text-ink rounded-xl p-2 w-full border border-white/40"
                       value={editedProfile?.base_salary || ""}
                       onChange={(e) =>
                         setEditedProfile((prev) => ({
@@ -480,13 +416,13 @@ export default function ProfilePage() {
                         }))
                       }
                     />
-                    <p className="text-green-100 mt-2">Annual compensation</p>
+                    <p className="text-white/80 mt-2">Annual compensation</p>
                   </>
                 )}
               </div>
 
               {/* Monthly Budget Card */}
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-lg p-8 text-white">
+              <div className="bg-brand rounded-2xl shadow-sm p-8 text-white">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xl font-bold">Monthly Budget</h3>
                   <div className="p-3 bg-white/20 rounded-xl">
@@ -497,13 +433,13 @@ export default function ProfilePage() {
                 {!editing ? (
                   <>
                     <p className="text-4xl font-bold mb-2">₹{profile.monthly_budget || "0"}</p>
-                    <p className="text-blue-100">Available monthly</p>
+                    <p className="text-white/80">Available monthly</p>
                   </>
                 ) : (
                   <>
                     <input
                       type="number"
-                      className="text-3xl font-bold text-black rounded-xl p-2 w-full"
+                      className="text-3xl font-bold text-ink rounded-xl p-2 w-full border border-white/40"
                       value={editedProfile?.monthly_budget || ""}
                       onChange={(e) =>
                         setEditedProfile((prev) => ({
@@ -512,37 +448,35 @@ export default function ProfilePage() {
                         }))
                       }
                     />
-                    <p className="text-blue-100 mt-2">Available monthly</p>
+                    <p className="text-white/80 mt-2">Available monthly</p>
                   </>
                 )}
               </div>
             </div>
           )}
-
-
         </div>
       </div>
 
       {showAvatarModal && (
-        <div className="fixed inset-0  bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
-            <h3 className="text-lg font-bold mb-4 text-gray-800">Choose Your Avatar</h3>
+        <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50">
+          <div className="bg-surface rounded-2xl p-6 max-w-md w-full shadow-xl">
+            <h3 className="text-lg font-bold mb-4 text-ink">Choose Your Avatar</h3>
             <div className="grid grid-cols-3 gap-4">
               {avatarOptions.map((avatar, idx) => (
                 <div key={idx} className="text-center">
                   <img
                     src={avatar.url}
                     alt={avatar.name}
-                    className="w-20 h-20 rounded-full cursor-pointer border-2 hover:border-indigo-600 transition"
+                    className="w-20 h-20 rounded-full cursor-pointer border-2 border-border hover:border-brand transition"
                     onClick={() => handleAvatarSelect(avatar.url)}
                   />
-                  <p className="text-xs mt-1 text-gray-600">{avatar.name}</p>
+                  <p className="text-xs mt-1 text-muted">{avatar.name}</p>
                 </div>
               ))}
             </div>
             <button
               onClick={() => setShowAvatarModal(false)}
-              className="mt-6 w-full py-2 bg-gray-700 text-white rounded-xl hover:bg-gray-800 transition"
+              className="mt-6 w-full py-2 border border-border text-ink rounded-xl hover:bg-canvas transition"
             >
               Cancel
             </button>

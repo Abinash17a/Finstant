@@ -6,6 +6,10 @@ import SalaryBudgetCharts from "./salary-budget-charts"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/chartscomponent/chatselements'
 import Link from "next/link"
 import { formatWord, generateLastMonthSummary, getMonthlySummaryData, getUserFromauthToken } from "../lib/utils"
+import GoalModal from "./GoalModal"
+import { cn } from "@/lib/utils"
+
+
 
 const Button = ({
   children,
@@ -106,6 +110,16 @@ export default function DashboardPage() {
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [modalCategories, setModalCategories] = useState<any[]>([]);
 
+const [showGoalModal, setShowGoalModal] = useState(false);
+const [editingGoal, setEditingGoal] = useState<any>(null);
+
+// const [newGoal, setNewGoal] = useState({
+//   name: "",
+//   target: "",
+//   current: "",
+// })
+
+
   const fetchProfileLimit = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -155,6 +169,41 @@ export default function DashboardPage() {
       console.error('Error calling summary API:', error);
     }
   };
+
+const saveGoal = async (goalData: any) => {
+  const token = localStorage.getItem("token");
+
+  const payload = {
+    id: editingGoal?.id ?? null,
+    name: goalData.name,
+    target: goalData.target,
+    current: goalData.current,
+  };
+
+  const response = await fetch("/api/financial-goals", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json();
+
+  console.log("Goal Save Response:", result);
+
+  if (!response.ok) {
+    throw new Error(result.message || "Failed to save goal");
+  }
+
+  setEditingGoal(null);
+  setShowGoalModal(false);
+
+  await fetchDashboardData();
+};
+
+
 
   const fetchDashboardData = async () => {
     try {
@@ -363,6 +412,28 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {(() => {
+    const totalAllocated = categories.reduce((sum, c) => sum + Number(c.budget || 0), 0);
+    const overBudget = totalAllocated > data.totalBudget;
+    return (
+      <div
+        className={cn(
+          "flex justify-between items-center p-3 rounded-xl text-sm border",
+          overBudget
+            ? "bg-expense/10 border-expense/30 text-expense"
+            : "bg-canvas border-border text-muted"
+        )}
+      >
+        <span className="font-medium">
+          {overBudget ? "Over budget by" : "Total allocated"}
+        </span>
+        <span className="font-semibold">
+          ₹{totalAllocated.toLocaleString()} of ₹{data.totalBudget.toLocaleString()}
+          {overBudget && ` (+₹${(totalAllocated - data.totalBudget).toLocaleString()})`}
+        </span>
+      </div>
+    );
+  })()}
               {categories?.map((category: any, index: number) => (
                 <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
@@ -436,10 +507,20 @@ export default function DashboardPage() {
             <CardContent className="space-y-4">
               {data.financialGoals.map((goal: any, index: number) => (
                 <div key={index} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-sm text-ink">{goal.name}</span>
-                    <span className="text-sm text-muted">{((goal.current / goal.target) * 100).toFixed(0)}%</span>
-                  </div>
+<div className="flex justify-between items-center">
+  <span className="font-medium text-sm text-ink">
+    {goal.name}
+  </span>
+
+<button
+  onClick={() => {
+    setEditingGoal(goal);
+    setShowGoalModal(true);
+  }}
+>
+  Edit
+</button>
+</div>
                   <Progress value={(goal.current / goal.target) * 100} color="#E8A33D" className="h-2" />
                   <div className="flex justify-between text-xs text-muted">
                     <span>₹{goal.current.toLocaleString()}</span>
@@ -447,10 +528,14 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
-              <Button variant="outline" className="w-full mt-4">
-                <Target className="w-4 h-4 mr-2" />
-                Set New Goal
-              </Button>
+<Button
+  onClick={() => {
+    setEditingGoal(null);
+    setShowGoalModal(true);
+  }}
+>
+  Set New Goal
+</Button>
             </CardContent>
           </Card>
         </div>
@@ -701,6 +786,14 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      <GoalModal
+  isOpen={showGoalModal}
+  editingGoal={editingGoal}
+  onClose={() => setShowGoalModal(false)}
+  onSave={async (goalData) => {
+    await saveGoal(goalData);
+  }}
+/>
     </div>
   )
 }
