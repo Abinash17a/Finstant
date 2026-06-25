@@ -123,63 +123,6 @@ export function formatWord(input: any) {
 }
 
 
-
-export async function getHuggingFaceAdvice(prompt: string) {
-
-  const HUGGING_FACE_API_TOKEN = process.env.HUGGINGFACE_API_KEY;
-
-
-
-  const res = await axios.post(
-
-    'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3',
-
-    {
-
-      inputs: prompt,
-
-      parameters: {
-
-        temperature: 0.8,
-
-        top_p: 0.95,
-
-        max_new_tokens: 200,
-
-      },
-
-    },
-
-    {
-
-      headers: {
-
-        Authorization: `Bearer ${HUGGING_FACE_API_TOKEN}`,
-
-        'Content-Type': 'application/json',
-
-      },
-
-    }
-
-  );
-
-
-
-  // return res.data?.[0]?.generated_text || 'No advice available.';
-
-  console.log("hello", res.data?.[0]?.generated_text)
-
-  const result = await extractSavingTip(res.data?.[0]?.generated_text)
-
-  return result || 'No advice available.';
-
-}
-
-
-
-
-
 export async function extractSavingTip(advice: string) {
 
   console.log(advice, "advice in extractSavingTip")
@@ -201,10 +144,6 @@ export async function extractSavingTip(advice: string) {
   return sentences.slice(1).join('. ') + '.';
 
 }
-
-
-
-
 
 // Define proper types for budget categories with spent amounts
 interface BudgetCategoryWithSpent {
@@ -471,10 +410,6 @@ export const generateLastMonthSummary = async (userId: string) => {
 
 };
 
-
-
-
-
 export const getMonthlySummaryData = async (userId: string) => {
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -511,129 +446,59 @@ export const getMonthlySummaryData = async (userId: string) => {
 
 };
 
-
-
+// lib/generateInsights.ts  (server-only — do not import this into a "use client" file)
 export async function generateInsights(data: string) {
-
-
-
   try {
-
-    const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
-
-    console.log("GEMINI_API_KEY", GEMINI_API_KEY);
-
-    if (!GEMINI_API_KEY) {
-
-      throw new Error("GEMINI_API_KEY is not set in environment variables.");
-
+    const OPENROUTER_API_KEY = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY is not set in environment variables.");
     }
 
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek/deepseek-chat-v3.1:free",
+        messages: [
+          { role: "user", content: data },
+        ],
+      }),
+    });
 
-
-    const response = await fetch(
-
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-
-      {
-
-        method: "POST",
-
-        headers: { "Content-Type": "application/json" },
-
-        body: JSON.stringify({
-
-          contents: [
-
-            {
-
-              parts: [{ text: data }]
-
-            }
-
-          ]
-
-        })
-
-      }
-
-    );
-
-
+    if (response.status === 429) {
+      throw new Error("Rate limited — please try again in a moment.");
+    }
 
     const result = await response.json();
 
-    console.log(result, "raw result from Gemini");
-
-
-
-    const rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    console.log(rawText, "rawText in generateInsights");
-
-
-
+    const rawText = result?.choices?.[0]?.message?.content;
     if (!rawText) {
-
-      throw new Error("Invalid response from Gemini API.");
-
+      console.error("Unexpected response shape:", result);
+      throw new Error("Invalid response from AI provider.");
     }
-
-
-
-    // ✅ Clean markdown code block markers (```json ... ```)
 
     let cleaned = rawText.trim();
-
     if (cleaned.startsWith("```json") || cleaned.startsWith("```")) {
-
       cleaned = cleaned.replace(/^```(?:json)?/, "").replace(/```$/, "").trim();
-
     }
-
-
 
     let insights;
-
     try {
-
       insights = JSON.parse(cleaned);
-
     } catch (parseError) {
-
-      console.error("Error parsing response:", parseError);
-
+      console.error("Error parsing AI response:", parseError, "Raw text:", rawText);
       throw new Error("Failed to parse AI response as JSON.");
-
     }
 
-
-
-    console.log(insights, "insights in generateInsights");
-
-    const res = formatRawInsights(insights);
-
-    console.log(res, "res in generateInsights");
-
-
-
-    return res;
-
+    return formatRawInsights(insights);
   } catch (err) {
-
     console.error("Error in generateInsights:", err);
-
-    throw new Error("Failed to generate insights from Gemini AI.");
-
+    throw err instanceof Error ? err : new Error("Failed to generate insights.");
   }
-
 }
-
-
-
-
-
-
 
 // utils/formatInsights.ts
 
@@ -883,7 +748,7 @@ export const dbinsightsDataModifier = async (dbinsightsData: any): Promise<strin
 
   // Instruction + Prompt Builder
 
-  const prompt = `
+const prompt = `
 
 You are a financial assistant. Analyze the following financial data and return insights in valid JSON string format.
 
@@ -962,8 +827,6 @@ Expenses: ₹${expenses}
   return prompt;
 
 };
-
-
 
 // Utility to convert month number to name
 

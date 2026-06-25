@@ -1,13 +1,14 @@
 "use client"
 import type React from "react"
 import { Suspense, useEffect, useState } from "react"
-import { Wallet, TrendingUp, Target, DollarSign, PlusCircle, Calendar } from "lucide-react"
+import { Wallet, TrendingUp, Target, DollarSign, PlusCircle, Calendar,IndianRupee } from "lucide-react"
 import SalaryBudgetCharts from "./salary-budget-charts"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/chartscomponent/chatselements'
 import Link from "next/link"
 import { formatWord, generateLastMonthSummary, getMonthlySummaryData, getUserFromauthToken } from "../lib/utils"
 import GoalModal from "./GoalModal"
 import { cn } from "@/lib/utils"
+import LoadingScreen from "./LoadingScreen"
 
 
 
@@ -235,18 +236,6 @@ const saveGoal = async (goalData: any) => {
     }
   };
 
-  const getAdvice = async () => {
-    const randomSuffix = Math.floor(Math.random() * 10000);
-    const prompt = `<s>[INST] A user spent ₹18500 this month, has a budget of ₹20000, top category is Dining, and spending increased by 18%. Give a fun 2-sentence summary and a playful saving tip. Ignore this: ${randomSuffix} [/INST]`;
-    const res = await fetch('/api/huggingface', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-    });
-
-    const data = await res.json();
-    setAdvice(data.advice);
-  };
 
   useEffect(() => {
     fetchDashboardData();
@@ -312,7 +301,7 @@ const saveGoal = async (goalData: any) => {
     setCategories(updated);
   };
 
-  if (loading) return <p className="p-6 text-muted">Loading...</p>;
+if (loading) return <LoadingScreen />;
   if (!data) return <p className="p-6 text-muted">No data available</p>;
 
   return (
@@ -385,7 +374,7 @@ const saveGoal = async (goalData: any) => {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium opacity-90">Remaining</CardTitle>
-                <DollarSign className="w-5 h-5 opacity-80" />
+                <IndianRupee className="w-5 h-5 opacity-80" />
               </div>
             </CardHeader>
             <CardContent>
