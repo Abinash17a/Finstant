@@ -1,7 +1,7 @@
 "use client"
 import type React from "react"
 import { Suspense, useEffect, useState } from "react"
-import { Wallet, TrendingUp, Target, DollarSign, PlusCircle, Calendar,IndianRupee } from "lucide-react"
+import { Wallet, TrendingUp, Target, DollarSign, PlusCircle, Calendar, IndianRupee, CheckCircle2, AlertTriangle } from "lucide-react"
 import SalaryBudgetCharts from "./salary-budget-charts"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/chartscomponent/chatselements'
 import Link from "next/link"
@@ -9,8 +9,6 @@ import { formatWord, generateLastMonthSummary, getMonthlySummaryData, getUserFro
 import GoalModal from "./GoalModal"
 import { cn } from "@/lib/utils"
 import LoadingScreen from "./LoadingScreen"
-
-
 
 const Button = ({
   children,
@@ -95,6 +93,14 @@ const PRESET_COLORS = [
   "#6366F1", // indigo (extra)
 ]
 
+const getMonthName = (month: number) => {
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ]
+  return months[month - 1]
+}
+
 export default function DashboardPage() {
   const today = new Date();
 
@@ -111,15 +117,8 @@ export default function DashboardPage() {
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [modalCategories, setModalCategories] = useState<any[]>([]);
 
-const [showGoalModal, setShowGoalModal] = useState(false);
-const [editingGoal, setEditingGoal] = useState<any>(null);
-
-// const [newGoal, setNewGoal] = useState({
-//   name: "",
-//   target: "",
-//   current: "",
-// })
-
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<any>(null);
 
   const fetchProfileLimit = async () => {
     try {
@@ -171,40 +170,36 @@ const [editingGoal, setEditingGoal] = useState<any>(null);
     }
   };
 
-const saveGoal = async (goalData: any) => {
-  const token = localStorage.getItem("token");
+  const saveGoal = async (goalData: any) => {
+    const token = localStorage.getItem("token");
 
-  const payload = {
-    id: editingGoal?.id ?? null,
-    name: goalData.name,
-    target: goalData.target,
-    current: goalData.current,
+    const payload = {
+      id: editingGoal?.id ?? null,
+      name: goalData.name,
+      target: goalData.target,
+      current: goalData.current,
+    };
+
+    const response = await fetch("/api/financial-goals", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || "Failed to save goal");
+    }
+
+    setEditingGoal(null);
+    setShowGoalModal(false);
+
+    await fetchDashboardData();
   };
-
-  const response = await fetch("/api/financial-goals", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const result = await response.json();
-
-  console.log("Goal Save Response:", result);
-
-  if (!response.ok) {
-    throw new Error(result.message || "Failed to save goal");
-  }
-
-  setEditingGoal(null);
-  setShowGoalModal(false);
-
-  await fetchDashboardData();
-};
-
-
 
   const fetchDashboardData = async () => {
     try {
@@ -235,7 +230,6 @@ const saveGoal = async (goalData: any) => {
       setLoading(false);
     }
   };
-
 
   useEffect(() => {
     fetchDashboardData();
@@ -301,12 +295,31 @@ const saveGoal = async (goalData: any) => {
     setCategories(updated);
   };
 
-if (loading) return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
   if (!data) return <p className="p-6 text-muted">No data available</p>;
+
+  // --- Plain-language pacing status, computed from data already on hand ---
+  const dayOfMonth = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const daysRemaining = daysInMonth - dayOfMonth;
+  const monthProgressPct = (dayOfMonth / daysInMonth) * 100;
+  const spendProgressPct = data.totalBudget > 0 ? (data.totalSpent / data.totalBudget) * 100 : 0;
+  const isAhead = spendProgressPct <= monthProgressPct;
+
+  const statusMessage = isAhead
+    ? `You're on track — you've used ${spendProgressPct.toFixed(0)}% of your budget with ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} left in ${getMonthName(today.getMonth() + 1)}.`
+    : `Heads up — you've used ${spendProgressPct.toFixed(0)}% of your budget, but only ${monthProgressPct.toFixed(0)}% of the month has passed.`;
+
+  // Spent card color reflects actual pacing risk instead of being fixed red
+  const spentCardColor = !isAhead
+    ? "bg-expense"
+    : spendProgressPct > 70
+    ? "bg-warning"
+    : "bg-brand";
 
   return (
     <div className="p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-[1600px] mx-auto space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -325,6 +338,23 @@ if (loading) return <LoadingScreen />;
               This Month
             </Button>
           </div>
+        </div>
+
+        {/* Plain-language status banner */}
+        <div
+          className={cn(
+            "flex items-center gap-3 p-4 rounded-2xl border text-sm font-medium",
+            isAhead
+              ? "bg-income/10 border-income/30 text-income"
+              : "bg-warning/10 border-warning/30 text-warning"
+          )}
+        >
+          {isAhead ? (
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
+          ) : (
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+          )}
+          <span>{statusMessage}</span>
         </div>
 
         {/* Key Metrics */}
@@ -355,7 +385,7 @@ if (loading) return <LoadingScreen />;
             </CardContent>
           </Card>
 
-          <Card className="bg-expense text-white border-0">
+          <Card className={cn(spentCardColor, "text-white border-0")}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium opacity-90">Spent This Month</CardTitle>
@@ -365,7 +395,7 @@ if (loading) return <LoadingScreen />;
             <CardContent>
               <div className="text-2xl font-bold">₹{data.totalSpent.toLocaleString()}</div>
               <p className="text-xs opacity-80 mt-1">
-                {((data.totalSpent / data.totalBudget) * 100).toFixed(1)}% of budget
+                {spendProgressPct.toFixed(1)}% of budget · {isAhead ? "On pace" : "Ahead of pace"}
               </p>
             </CardContent>
           </Card>
@@ -402,27 +432,27 @@ if (loading) return <LoadingScreen />;
             </CardHeader>
             <CardContent className="space-y-4">
               {(() => {
-    const totalAllocated = categories.reduce((sum, c) => sum + Number(c.budget || 0), 0);
-    const overBudget = totalAllocated > data.totalBudget;
-    return (
-      <div
-        className={cn(
-          "flex justify-between items-center p-3 rounded-xl text-sm border",
-          overBudget
-            ? "bg-expense/10 border-expense/30 text-expense"
-            : "bg-canvas border-border text-muted"
-        )}
-      >
-        <span className="font-medium">
-          {overBudget ? "Over budget by" : "Total allocated"}
-        </span>
-        <span className="font-semibold">
-          ₹{totalAllocated.toLocaleString()} of ₹{data.totalBudget.toLocaleString()}
-          {overBudget && ` (+₹${(totalAllocated - data.totalBudget).toLocaleString()})`}
-        </span>
-      </div>
-    );
-  })()}
+                const totalAllocated = categories.reduce((sum, c) => sum + Number(c.budget || 0), 0);
+                const overBudget = totalAllocated > data.totalBudget;
+                return (
+                  <div
+                    className={cn(
+                      "flex justify-between items-center p-3 rounded-xl text-sm border",
+                      overBudget
+                        ? "bg-expense/10 border-expense/30 text-expense"
+                        : "bg-canvas border-border text-muted"
+                    )}
+                  >
+                    <span className="font-medium">
+                      {overBudget ? "Over budget by" : "Total allocated"}
+                    </span>
+                    <span className="font-semibold">
+                      ₹{totalAllocated.toLocaleString()} of ₹{data.totalBudget.toLocaleString()}
+                      {overBudget && ` (+₹${(totalAllocated - data.totalBudget).toLocaleString()})`}
+                    </span>
+                  </div>
+                );
+              })()}
               {categories?.map((category: any, index: number) => (
                 <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
@@ -496,20 +526,21 @@ if (loading) return <LoadingScreen />;
             <CardContent className="space-y-4">
               {data.financialGoals.map((goal: any, index: number) => (
                 <div key={index} className="space-y-2">
-<div className="flex justify-between items-center">
-  <span className="font-medium text-sm text-ink">
-    {goal.name}
-  </span>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-sm text-ink">
+                      {goal.name}
+                    </span>
 
-<button
-  onClick={() => {
-    setEditingGoal(goal);
-    setShowGoalModal(true);
-  }}
->
-  Edit
-</button>
-</div>
+                    <button
+                      onClick={() => {
+                        setEditingGoal(goal);
+                        setShowGoalModal(true);
+                      }}
+                      className="text-xs text-brand hover:underline"
+                    >
+                      Edit
+                    </button>
+                  </div>
                   <Progress value={(goal.current / goal.target) * 100} color="#E8A33D" className="h-2" />
                   <div className="flex justify-between text-xs text-muted">
                     <span>₹{goal.current.toLocaleString()}</span>
@@ -517,51 +548,78 @@ if (loading) return <LoadingScreen />;
                   </div>
                 </div>
               ))}
-<Button
-  onClick={() => {
-    setEditingGoal(null);
-    setShowGoalModal(true);
-  }}
->
-  Set New Goal
-</Button>
+              <Button
+                variant="outline"
+                className="w-full mt-2"
+                onClick={() => {
+                  setEditingGoal(null);
+                  setShowGoalModal(true);
+                }}
+              >
+                <Target className="w-4 h-4 mr-2" />
+                Set New Goal
+              </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* Recent Transactions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl">Recent Transactions</CardTitle>
-            <CardDescription>Your latest financial activity</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {data.recentTransactions.map((transaction: any, index: number) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-canvas rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-10 h-10 rounded-full ${transaction.categoryColor} flex items-center justify-center text-white font-semibold text-sm`}
-                    >
-                      {transaction.category.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="font-medium text-ink">{transaction.description}</div>
-                      <div className="text-sm text-muted">
-                        {formatWord(transaction.category)} • {transaction.date}
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    className={`font-semibold ${transaction.type === "income" ? "text-income" : "text-expense"}`}
-                  >
-                    {transaction.type === "income" ? "+" : "-"}₹{transaction.amount.toLocaleString()}
-                  </div>
-                </div>
-              ))}
+{/* Recent Transactions */}
+<Card>
+  <CardHeader>
+    <CardTitle className="text-xl">Recent Transactions</CardTitle>
+    <CardDescription>Your latest financial activity</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      {data.recentTransactions.map((transaction: any, index: number) => {
+        const isIncome = transaction.type === "income";
+        const txDate = new Date(transaction.date);
+        const formattedDate = isNaN(txDate.getTime())
+          ? transaction.date
+          : txDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+        return (
+          <div
+            key={transaction.id ?? index}
+            className="group relative flex flex-col gap-3 p-4 bg-surface border border-border rounded-2xl hover:shadow-md hover:border-muted/40 transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-start justify-between">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-semibold text-sm shrink-0"
+                style={{ backgroundColor: transaction.categoryColor || "#8A94A3" }}
+              >
+                {transaction.category?.charAt(0)}
+              </div>
+              <div
+                className={cn(
+                  "font-semibold text-sm px-2 py-1 rounded-lg",
+                  isIncome ? "bg-income/10 text-income" : "bg-expense/10 text-expense"
+                )}
+              >
+                {isIncome ? "+" : "-"}₹{transaction.amount.toLocaleString()}
+              </div>
             </div>
-          </CardContent>
-        </Card>
+
+            <div>
+              <div className="font-medium text-ink truncate">
+                {transaction.description || formatWord(transaction.category)}
+              </div>
+              <div className="text-sm text-muted mt-0.5">
+                {formatWord(transaction.category)} · {formattedDate}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    {data.recentTransactions.length === 0 && (
+      <div className="text-center py-8 text-muted text-sm">
+        No transactions yet — your activity will show up here.
+      </div>
+    )}
+  </CardContent>
+</Card>
       </div>
 
       {/* Floating Financial Tip */}
@@ -776,13 +834,13 @@ if (loading) return <LoadingScreen />;
         </div>
       )}
       <GoalModal
-  isOpen={showGoalModal}
-  editingGoal={editingGoal}
-  onClose={() => setShowGoalModal(false)}
-  onSave={async (goalData) => {
-    await saveGoal(goalData);
-  }}
-/>
+        isOpen={showGoalModal}
+        editingGoal={editingGoal}
+        onClose={() => setShowGoalModal(false)}
+        onSave={async (goalData) => {
+          await saveGoal(goalData);
+        }}
+      />
     </div>
   )
 }

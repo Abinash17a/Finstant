@@ -12,7 +12,7 @@ export async function generateInsights(data: string) {
       Authorization: `Bearer ${OPENROUTER_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "deepseek/deepseek-chat-v3.1:free",
+      model: "deepseek/deepseek-chat-v3.1",
       messages: [{ role: "user", content: data }],
     }),
   });

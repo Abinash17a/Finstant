@@ -446,60 +446,6 @@ export const getMonthlySummaryData = async (userId: string) => {
 
 };
 
-// lib/generateInsights.ts  (server-only — do not import this into a "use client" file)
-export async function generateInsights(data: string) {
-  try {
-    const OPENROUTER_API_KEY = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY is not set in environment variables.");
-    }
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek/deepseek-chat-v3.1:free",
-        messages: [
-          { role: "user", content: data },
-        ],
-      }),
-    });
-
-    if (response.status === 429) {
-      throw new Error("Rate limited — please try again in a moment.");
-    }
-
-    const result = await response.json();
-
-    const rawText = result?.choices?.[0]?.message?.content;
-    if (!rawText) {
-      console.error("Unexpected response shape:", result);
-      throw new Error("Invalid response from AI provider.");
-    }
-
-    let cleaned = rawText.trim();
-    if (cleaned.startsWith("```json") || cleaned.startsWith("```")) {
-      cleaned = cleaned.replace(/^```(?:json)?/, "").replace(/```$/, "").trim();
-    }
-
-    let insights;
-    try {
-      insights = JSON.parse(cleaned);
-    } catch (parseError) {
-      console.error("Error parsing AI response:", parseError, "Raw text:", rawText);
-      throw new Error("Failed to parse AI response as JSON.");
-    }
-
-    return formatRawInsights(insights);
-  } catch (err) {
-    console.error("Error in generateInsights:", err);
-    throw err instanceof Error ? err : new Error("Failed to generate insights.");
-  }
-}
-
 // utils/formatInsights.ts
 
 export function formatRawInsights(insightText: string | any): { sections: any[] } {
@@ -669,163 +615,98 @@ export function formatRawInsights(insightText: string | any): { sections: any[] 
 
 
 export const dbinsightsDataModifier = async (dbinsightsData: any): Promise<string> => {
-
   if (!dbinsightsData) throw new Error("Missing DB insights data");
 
-
-
   const {
-
     incomeExpense = [],
-
     budgetUtilization = [],
-
     savingsTrend = [],
-
     budgetDistribution = [],
-
     topSpending = [],
-
     today
-
   } = dbinsightsData;
 
-
-
   // Build top spending section
-
   const topSpendingFormatted = topSpending
-
     .map((item: any) => `- ${item.category}: ₹${item.total_spent}`)
-
     .join("\n");
-
-
 
   // Budget utilization
-
   const budgetUtilizationFormatted = budgetUtilization
-
     .map((item: any) => {
-
-      return `- ${item.category}: Spent ₹${item.spent} of ₹${item.budget}`;
-
+      const pct = item.budget > 0 ? ((item.spent / item.budget) * 100).toFixed(1) : "0";
+      return `- ${item.category}: Spent ₹${item.spent} of ₹${item.budget} (${pct}%)`;
     })
-
     .join("\n");
-
-
 
   // Savings trend (pick last two for recent comparison)
-
   const sortedSavings = [...savingsTrend].sort((a: any, b: any) =>
-
     b.year !== a.year ? b.year - a.year : b.month - a.month
-
   );
 
-
-
   const recentSavings = sortedSavings.slice(0, 2);
-
   const savingsFormatted = recentSavings
-
     .map((item: any) => `- ${getMonthName(item.month)}: ₹${item.savings}`)
-
     .join("\n");
 
-
-
-  // Income & Expense Summary
-
-  const income = incomeExpense.find((i: any) => i.type === "Income (Salary)")?.total || 0;
-
-  const repayments = incomeExpense.find((i: any) => i.type === "Repayments Received")?.total || 0;
-
+  // Income & Expense Summary — matches the SQL function's three-way split:
+  // salary (from user profile), other income (logged transactions), and expenses
+  const salary = incomeExpense.find((i: any) => i.type === "Salary")?.total || 0;
+  const otherIncome = incomeExpense.find((i: any) => i.type === "Other Income")?.total || 0;
   const expenses = incomeExpense.find((i: any) => i.type === "Expense")?.total || 0;
+  const totalIncome = salary + otherIncome;
 
+  // Day-of-month context, computed explicitly rather than left for the model to infer from a date string
+  const todayDate = today ? new Date(today) : new Date();
+  const dayOfMonth = todayDate.getDate();
+  const daysInMonth = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0).getDate();
+  const monthProgressPct = ((dayOfMonth / daysInMonth) * 100).toFixed(0);
 
+  const prompt = `
+You are a sharp, no-fluff personal finance analyst. Analyze this user's real financial data and return insights in valid JSON string format.
 
-  // Instruction + Prompt Builder
-
-const prompt = `
-
-You are a financial assistant. Analyze the following financial data and return insights in valid JSON string format.
-
-
-
-Instructions:
-
-- The output must be a **single JSON object** as a string.
-
-- Do not include any explanations or comments—only return valid JSON in the format described below.
-
-- If a category has spent more than 80% of its budget and it is early in the month, mark it as overspending.
-
-- If a category is within limits, acknowledge it as well-managed.
-
-- Base suggestions on data, budget utilization, and time of month (today is ${today}).
-
-
+CRITICAL RULES:
+- Never give generic advice that could apply to anyone (e.g. "track your spending," "create a budget," "save more"). Every insight must reference a specific number, category, or trend from the data below.
+- Actively look for ANOMALIES: a category spiking compared to others, spending that doesn't match the budget allocated to it, a savings trend reversing direction, income that's missing or unusually low/high, or a category with 0% utilization that might mean a missed budget entry rather than good discipline.
+- Do not praise "good behavior" unless the data actually shows restraint (e.g. spending meaningfully below budget AND below the prior month). Low spending in a category with no transactions at all is not evidence of good discipline — say so plainly if that's the case, don't fabricate praise.
+- For "Suggestions," propose a concrete next action tied to a specific number (e.g. "Shopping is 37.5% of total spend at ₹3000 — consider capping it at ₹2000 next month to bring savings back toward last month's level"), not a restated observation.
+- Salary is a fixed monthly figure from the user's profile, not something logged as a transaction each month — so a salary of ₹0 is a real data problem worth flagging (the user likely hasn't set it up), but "Other Income" being ₹0 in a given month is normal and not worth commenting on unless prior months show a pattern of regular extra income that's now missing.
+- If something in the data looks contradictory or incomplete (e.g. expenses recorded with no matching income, or a budget category with spend but no allocation), flag it directly as a possible tracking gap rather than ignoring it.
+- The month is ${monthProgressPct}% complete (day ${dayOfMonth} of ${daysInMonth}). Weight your risk assessment accordingly — a category at 80% of budget on day 5 is a serious warning; the same percentage on day 28 is normal pacing.
 
 Return the output strictly in this JSON structure:
-
 {
-
   "sections": [
-
     { "type": "heading", "level": 2, "text": "Summary" },
-
     { "type": "paragraph", "text": "..." },
-
     { "type": "list", "items": [{ "text": "..." }] },
-
+    { "type": "heading", "level": 2, "text": "What's Unusual" },
+    { "type": "list", "items": [{ "text": "..." }] },
     { "type": "heading", "level": 2, "text": "Suggestions" },
-
     { "type": "list", "items": [{ "text": "..." }] }
-
   ]
-
 }
 
-
-
 Data:
-
 Top Spending:
-
 ${topSpendingFormatted || "- None"}
 
-
-
 Budget Utilization:
-
 ${budgetUtilizationFormatted || "- None"}
 
-
-
 Savings:
-
 ${savingsFormatted || "- None"}
 
-
-
 Income:
-
-- Salary: ₹${income}
-
-- money i got back from friends that i gave them previously: ₹${repayments}
-
+- Salary: ₹${salary}
+- Other Income: ₹${otherIncome}
+- Total Income: ₹${totalIncome}
 Expenses: ₹${expenses}
-
   `.trim();
-
-
 
   console.log("Generated prompt---------------------:", prompt);
 
   return prompt;
-
 };
 
 // Utility to convert month number to name
